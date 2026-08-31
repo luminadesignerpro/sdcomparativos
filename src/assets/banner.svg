@@ -1,0 +1,163 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400" fill="none">
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0a0f1a"/>
+      <stop offset="50%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#050810"/>
+    </linearGradient>
+    <linearGradient id="goldText" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f59e0b"/>
+      <stop offset="40%" stop-color="#fcd34d"/>
+      <stop offset="100%" stop-color="#d97706"/>
+    </linearGradient>
+    <linearGradient id="goldText2" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#fbbf24"/>
+      <stop offset="50%" stop-color="#fef08a"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+    <linearGradient id="emerald" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="100%" stop-color="#34d399"/>
+    </linearGradient>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#60a5fa"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="softGlow">
+      <feGaussianBlur stdDeviation="25" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="cardShadow">
+      <feDropShadow dx="0" dy="8" stdDeviation="20" flood-color="#000" flood-opacity="0.6"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="400" fill="url(#bgGrad)"/>
+
+  <!-- Grid lines -->
+  <g opacity="0.04" stroke="#f59e0b" stroke-width="0.8">
+    <line x1="0" y1="50" x2="1200" y2="50"/>
+    <line x1="0" y1="100" x2="1200" y2="100"/>
+    <line x1="0" y1="150" x2="1200" y2="150"/>
+    <line x1="0" y1="200" x2="1200" y2="200"/>
+    <line x1="0" y1="250" x2="1200" y2="250"/>
+    <line x1="0" y1="300" x2="1200" y2="300"/>
+    <line x1="0" y1="350" x2="1200" y2="350"/>
+    <line x1="100" y1="0" x2="100" y2="400"/>
+    <line x1="200" y1="0" x2="200" y2="400"/>
+    <line x1="300" y1="0" x2="300" y2="400"/>
+    <line x1="400" y1="0" x2="400" y2="400"/>
+    <line x1="500" y1="0" x2="500" y2="400"/>
+    <line x1="600" y1="0" x2="600" y2="400"/>
+    <line x1="700" y1="0" x2="700" y2="400"/>
+    <line x1="800" y1="0" x2="800" y2="400"/>
+    <line x1="900" y1="0" x2="900" y2="400"/>
+    <line x1="1000" y1="0" x2="1000" y2="400"/>
+    <line x1="1100" y1="0" x2="1100" y2="400"/>
+  </g>
+
+  <!-- Glow orbs -->
+  <circle cx="150" cy="200" r="200" fill="#f59e0b" opacity="0.04" filter="url(#softGlow)"/>
+  <circle cx="900" cy="180" r="150" fill="#d97706" opacity="0.05" filter="url(#softGlow)"/>
+  <circle cx="1150" cy="380" r="180" fill="#92400e" opacity="0.06" filter="url(#softGlow)"/>
+
+  <!-- ─── LEFT SECTION: Logo + Texts ─── -->
+
+  <!-- Logo icon box -->
+  <rect x="60" y="130" width="80" height="80" rx="18" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5" stroke-opacity="0.5"/>
+  <text x="100" y="192" text-anchor="middle" font-family="'Segoe UI', Arial Black, sans-serif" font-size="42" font-weight="900" fill="url(#goldText)" filter="url(#glow)">SD</text>
+
+  <!-- Brand name -->
+  <text x="162" y="172" font-family="'Segoe UI', Arial, sans-serif" font-size="52" font-weight="900" letter-spacing="-1" fill="white">SD</text>
+  <text x="215" y="172" font-family="'Segoe UI', Arial, sans-serif" font-size="52" font-weight="300" letter-spacing="-1" fill="url(#goldText2)">comparativo</text>
+
+  <!-- Version badge -->
+  <rect x="162" y="183" width="78" height="20" rx="10" fill="#f59e0b" fill-opacity="0.12" stroke="#f59e0b" stroke-opacity="0.3" stroke-width="1"/>
+  <text x="201" y="197" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10" font-weight="700" fill="#fbbf24" letter-spacing="1.5">v1.0 PRO</text>
+
+  <!-- Subtitle -->
+  <text x="162" y="228" font-family="'Segoe UI', Arial, sans-serif" font-size="17" fill="#94a3b8" letter-spacing="0.2">Comparador Inteligente de Preços &amp; Fornecedores</text>
+
+  <!-- Feature pills -->
+  <!-- MDF pill -->
+  <rect x="162" y="252" width="76" height="26" rx="13" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+  <text x="200" y="269" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#cbd5e1">📋 MDF &amp; MDP</text>
+
+  <!-- Ferragens pill -->
+  <rect x="248" y="252" width="82" height="26" rx="13" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+  <text x="289" y="269" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#cbd5e1">🔩 Ferragens</text>
+
+  <!-- IA pill -->
+  <rect x="340" y="252" width="72" height="26" rx="13" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+  <text x="376" y="269" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#cbd5e1">✨ IA &amp; OCR</text>
+
+  <!-- Cotações pill -->
+  <rect x="422" y="252" width="86" height="26" rx="13" fill="#f59e0b" fill-opacity="0.15" stroke="#f59e0b" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="465" y="269" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="11" font-weight="600" fill="#fbbf24">📊 Cotações</text>
+
+  <!-- Divider -->
+  <line x1="570" y1="60" x2="570" y2="340" stroke="#334155" stroke-width="1" opacity="0.6"/>
+
+  <!-- ─── RIGHT SECTION: Floating Card ─── -->
+
+  <!-- Card shadow/glow -->
+  <rect x="610" y="70" width="530" height="265" rx="20" fill="#000" opacity="0.5"/>
+
+  <!-- Card body -->
+  <rect x="605" y="65" width="530" height="265" rx="20" fill="#0f172a" stroke="#1e293b" stroke-width="1.5" filter="url(#cardShadow)"/>
+  <rect x="605" y="65" width="530" height="265" rx="20" fill="none" stroke="#f59e0b" stroke-width="1" stroke-opacity="0.15"/>
+
+  <!-- Card header -->
+  <rect x="605" y="65" width="530" height="52" rx="20" fill="#1e293b"/>
+  <rect x="605" y="95" width="530" height="22" fill="#1e293b"/>
+  <text x="635" y="97" font-family="'Segoe UI', Arial, sans-serif" font-size="13" font-weight="700" fill="white">Comparativo de Preços — MDF 15mm</text>
+  <circle cx="1095" cy="90" r="6" fill="#ef4444" opacity="0.8"/>
+  <circle cx="1112" cy="90" r="6" fill="#f59e0b" opacity="0.8"/>
+
+  <!-- Table header row -->
+  <rect x="620" y="128" width="500" height="28" rx="6" fill="#1e293b"/>
+  <text x="640" y="147" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#64748b" font-weight="600">FORNECEDOR</text>
+  <text x="810" y="147" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#64748b" font-weight="600">PREÇO/m²</text>
+  <text x="920" y="147" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#64748b" font-weight="600">PRAZO</text>
+  <text x="1020" y="147" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#64748b" font-weight="600">STATUS</text>
+
+  <!-- Row 1 — winner -->
+  <rect x="620" y="162" width="500" height="32" rx="6" fill="#064e3b" fill-opacity="0.4" stroke="#10b981" stroke-width="1" stroke-opacity="0.3"/>
+  <text x="640" y="183" font-family="'Segoe UI', Arial, sans-serif" font-size="12" fill="white" font-weight="600">Masisa Brasil</text>
+  <text x="810" y="183" font-family="'Segoe UI', Arial, sans-serif" font-size="13" fill="url(#emerald)" font-weight="800">R$ 48,90</text>
+  <text x="920" y="183" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#94a3b8">3 dias</text>
+  <rect x="1018" y="169" width="72" height="18" rx="9" fill="#10b981" fill-opacity="0.2" stroke="#10b981" stroke-opacity="0.5" stroke-width="1"/>
+  <text x="1054" y="182" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10" fill="#34d399" font-weight="700">✓ MENOR</text>
+
+  <!-- Row 2 -->
+  <rect x="620" y="200" width="500" height="32" rx="6" fill="#0f172a"/>
+  <text x="640" y="221" font-family="'Segoe UI', Arial, sans-serif" font-size="12" fill="#cbd5e1">Arauco Painéis</text>
+  <text x="810" y="221" font-family="'Segoe UI', Arial, sans-serif" font-size="13" fill="white" font-weight="700">R$ 52,40</text>
+  <text x="920" y="221" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#94a3b8">5 dias</text>
+  <rect x="1018" y="207" width="72" height="18" rx="9" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+  <text x="1054" y="220" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10" fill="#64748b">Normal</text>
+
+  <!-- Row 3 -->
+  <rect x="620" y="238" width="500" height="32" rx="6" fill="#0f172a"/>
+  <text x="640" y="259" font-family="'Segoe UI', Arial, sans-serif" font-size="12" fill="#cbd5e1">Duratex S.A.</text>
+  <text x="810" y="259" font-family="'Segoe UI', Arial, sans-serif" font-size="13" fill="white" font-weight="700">R$ 55,20</text>
+  <text x="920" y="259" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#94a3b8">7 dias</text>
+  <rect x="1018" y="245" width="72" height="18" rx="9" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+  <text x="1054" y="258" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10" fill="#64748b">Normal</text>
+
+  <!-- Savings badge at bottom of card -->
+  <rect x="620" y="282" width="500" height="34" rx="10" fill="#1e293b"/>
+  <text x="640" y="303" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#64748b">Economia na escolha do melhor fornecedor:</text>
+  <text x="960" y="303" font-family="'Segoe UI', Arial, sans-serif" font-size="13" font-weight="800" fill="url(#emerald)">↓ R$ 6,30/m²  ≈ 11,4%</text>
+
+  <!-- Bottom bar / footer -->
+  <rect x="0" y="370" width="1200" height="30" fill="#0a0f1a" opacity="0.8"/>
+  <text x="60" y="389" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#334155">© 2025 SD Móveis Projetados</text>
+  <text x="600" y="389" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#f59e0b" fill-opacity="0.5">sdcomparativo · Módulo de Aquisição e Comparativo de Insumos</text>
+  <text x="1140" y="389" text-anchor="end" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#334155">v1.0 Pro</text>
+</svg>

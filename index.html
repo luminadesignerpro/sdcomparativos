@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <!-- TODO: Set the document title to the name of your application -->
+  <title>SDcomparativo - Comparador de Fornecedores & Preços</title>
+  <meta name="description" content="SDcomparativo - Sistema de Comparação de Preços de Fornecedores, Cotações e Lista de Materiais" />
+  <meta name="author" content="SD Móveis Projetados" />
+  <meta property="og:title" content="SDcomparativo" />
+  <meta property="og:description" content="Comparador inteligente de cotações e fornecedores para marcenaria e móveis projetados." />
+  <meta property="og:type" content="website" />
+  <link rel="icon" type="image/jpeg" href="/favicon.jpeg" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" href="/icon-180x180.png" />
+  <meta name="theme-color" content="#d97706" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="SDcomparativo" />
+</head>
+<body>
+  <div id="root"></div>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(reg => console.log('SW registrado com sucesso:', reg.scope))
+          .catch(err => console.log('Erro ao registrar SW:', err));
+      });
+    }
+  </script>
+  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
+  <script type="module" src="/src/main.tsx"></script>
+  <script>
+    // Registra o Service Worker (roda depois da limpeza de cache acima, no evento "load")
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('/sw.js').catch(function (err) {
+          console.warn('Falha ao registrar o Service Worker:', err);
+        });
+      });
+    }
+  </script>
+</body>
+</html>
