@@ -1367,16 +1367,26 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
     toast({ title: isAll ? '💰 Cotação salva em TODOS os fornecedores!' : `💰 Cotação salva para ${sName}!` });
   };
 
-  const handleDeleteQuote = (prodId: string, supplierName: string) => {
+  const handleDeleteQuote = (prodId: string, supplierNameOrId: string) => {
+    const cleanTarget = (supplierNameOrId || '').trim().toLowerCase();
     setComparisons(prev => {
       const updated = prev.map(p => {
         if (p.id !== prodId) return p;
-        return { ...p, quotes: p.quotes.filter(q => q.supplierName !== supplierName) };
+        const filteredQuotes = (p.quotes || []).filter(q => {
+          const qName = (q.supplierName || '').trim().toLowerCase();
+          const qId = (q.supplierId || '').trim().toLowerCase();
+          const matches = qName === cleanTarget || qId === cleanTarget || (cleanTarget && qName.includes(cleanTarget)) || (cleanTarget && cleanTarget.includes(qName));
+          return !matches;
+        });
+        return { ...p, quotes: filteredQuotes };
+      }).filter(p => {
+        // Se o produto não tiver mais nenhuma cotação, remove o produto
+        return p.quotes && p.quotes.length > 0;
       });
       localStorage.setItem('sd_supplier_comparisons_v3', JSON.stringify(updated));
       return updated;
     });
-    toast({ title: '🗑️ Cotação removida' });
+    toast({ title: '🗑️ Cotação / Produto excluído com sucesso!' });
   };
 
   // Material List Handlers
