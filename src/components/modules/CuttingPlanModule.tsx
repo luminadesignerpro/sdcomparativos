@@ -1954,57 +1954,51 @@ export const CuttingPlanModule: React.FC<CuttingPlanModuleProps> = ({
         {/* Canvas / SVG de Renderização da Chapa 2D */}
         {currentActiveSheet ? (
           <div className="space-y-3">
-            <div className="bg-[#0b0d11] border border-white/15 rounded-2xl p-4 overflow-x-auto">
-              <div className="flex justify-between items-center text-[11px] text-gray-400 mb-2 font-mono">
-                <span>Material: <b className="text-amber-300">{currentActiveSheet.material}</b></span>
-                <span>Dimensões: <b className="text-white">{toDisplay(sheetConfig.length)} x {toDisplay(sheetConfig.width)} {unitLabel}</b> | Refilo: {toDisplay(sheetConfig.trimMargin)}{unitLabel} | Serra: {toDisplay(sheetConfig.bladeKerf)}{unitLabel}</span>
-                <span>Aproveitamento: <b className="text-emerald-400">{currentActiveSheet.efficiencyPercent}%</b> ({currentActiveSheet.pieces.length} peças)</span>
+            <div className="bg-[#0b0d11] border border-white/15 rounded-2xl p-3 sm:p-4 overflow-x-auto">
+              {/* Informações da Chapa em Cards Padronizados */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs mb-3 font-medium">
+                <div className="bg-[#181b22] border border-white/10 px-3 py-2 rounded-xl flex items-center justify-between">
+                  <span className="text-gray-400 text-[11px]">Material:</span>
+                  <b className="text-amber-300 font-bold truncate ml-1">{currentActiveSheet.material}</b>
+                </div>
+                <div className="bg-[#181b22] border border-white/10 px-3 py-2 rounded-xl flex items-center justify-between">
+                  <span className="text-gray-400 text-[11px]">Dimensões Chapa:</span>
+                  <b className="text-white font-bold">{toDisplay(sheetConfig.length)} x {toDisplay(sheetConfig.width)} {unitLabel}</b>
+                </div>
+                <div className="bg-[#181b22] border border-white/10 px-3 py-2 rounded-xl flex items-center justify-between">
+                  <span className="text-gray-400 text-[11px]">Aproveitamento:</span>
+                  <b className="text-emerald-400 font-black">{currentActiveSheet.efficiencyPercent}% ({currentActiveSheet.pieces.length} peças)</b>
+                </div>
               </div>
 
-              {/* Chapa Proporcional em SVG com cores e veias do MDF */}
+              {/* Chapa Proporcional em SVG com Fundo Branco Limpo e Peças Destacadas */}
               {(() => {
-                const sheetPalette = getMaterialPalette(currentActiveSheet.material);
                 const sheetPatId = `grain_sheet_${sanitizeId(currentActiveSheet.material)}`;
                 return (
-                  <div className="relative w-full overflow-hidden rounded-xl border-2 border-dashed border-amber-500/40"
-                    style={{ background: sheetPalette.base }}>
+                  <div className="relative w-full overflow-hidden rounded-xl border-2 border-amber-500 shadow-2xl"
+                    style={{ background: '#ffffff' }}>
                     <svg
                       ref={svgRef}
                       viewBox={`0 0 ${sheetConfig.length} ${sheetConfig.width}`}
-                      className="w-full h-auto max-h-[550px] block select-none touch-none"
+                      className="w-full h-auto max-h-[550px] block select-none touch-none bg-white"
                       style={{ aspectRatio: `${sheetConfig.length} / ${sheetConfig.width}`, cursor: dragState ? 'grabbing' : 'default' }}
                       onPointerMove={handleSvgPointerMove}
                       onPointerUp={handleSvgPointerUp}
                       onPointerLeave={handleSvgPointerUp}
                     >
                       <defs>
-                        {/* Pattern de veias do MDF (folha/sobra) */}
-                        <pattern id={sheetPatId} x="0" y="0" width="120" height="60" patternUnits="userSpaceOnUse">
-                          <rect width="120" height="60" fill={sheetPalette.base} />
-                          {/* Veias: linhas levemente onduladas */}
-                          <path d="M0 10 Q30 8 60 12 Q90 16 120 10" stroke={sheetPalette.grain} strokeWidth="1.5" fill="none" opacity={sheetPalette.grainOpacity} />
-                          <path d="M0 22 Q25 20 55 25 Q85 28 120 22" stroke={sheetPalette.grain} strokeWidth="1" fill="none" opacity={sheetPalette.grainOpacity * 0.7} />
-                          <path d="M0 35 Q40 30 70 37 Q95 40 120 35" stroke={sheetPalette.grain} strokeWidth="1.8" fill="none" opacity={sheetPalette.grainOpacity} />
-                          <path d="M0 48 Q30 44 65 50 Q95 53 120 48" stroke={sheetPalette.grain} strokeWidth="0.8" fill="none" opacity={sheetPalette.grainOpacity * 0.6} />
+                        {/* Grid técnico sutil de fundo */}
+                        <pattern id="tech_grid" width="100" height="100" patternUnits="userSpaceOnUse">
+                          <path d="M 100 0 L 0 0 0 100" fill="none" stroke="#f1f5f9" strokeWidth="1" />
                         </pattern>
 
-                        {/* Patterns individuais por peça (variação de cor por índice) */}
+                        {/* Patterns individuais por peça (textura do MDF de alta qualidade) */}
                         {currentActiveSheet.pieces.map((p, pIdx) => {
                           const piecePalette = getMaterialPalette(p.piece.material);
                           const patId = `grain_piece_${pIdx}_${sanitizeId(p.piece.material)}`;
-                          const pieceColors = [
-                            { tint: '#00000020', shadow: '#00000035' },
-                            { tint: '#ffffff18', shadow: '#ffffff12' },
-                            { tint: '#00000028', shadow: '#00000020' },
-                            { tint: '#ffffff14', shadow: '#ffffff20' },
-                            { tint: '#00000020', shadow: '#00000030' },
-                            { tint: '#ffffff10', shadow: '#00000025' },
-                          ];
-                          const tint = pieceColors[pIdx % pieceColors.length].tint;
                           return (
                             <pattern key={patId} id={patId} x={p.x} y={p.y} width="120" height="60" patternUnits="userSpaceOnUse">
                               <rect width="120" height="60" fill={piecePalette.base} />
-                              <rect width="120" height="60" fill={tint} />
                               <path d="M0 10 Q30 8 60 12 Q90 16 120 10" stroke={piecePalette.grain} strokeWidth="1.8" fill="none" opacity={piecePalette.grainOpacity + 0.05} />
                               <path d="M0 22 Q25 19 55 24 Q85 28 120 22" stroke={piecePalette.grain} strokeWidth="1" fill="none" opacity={piecePalette.grainOpacity * 0.8} />
                               <path d="M0 34 Q40 30 70 36 Q95 40 120 34" stroke={piecePalette.grain} strokeWidth="2" fill="none" opacity={piecePalette.grainOpacity + 0.03} />
@@ -2014,15 +2008,22 @@ export const CuttingPlanModule: React.FC<CuttingPlanModuleProps> = ({
                         })}
                       </defs>
 
-                      {/* Fundo da chapa – cor + veia do MDF */}
+                      {/* Fundo da chapa – Branco Limpo Técnico com Grade Suave */}
                       <rect
                         x="0"
                         y="0"
                         width={sheetConfig.length}
                         height={sheetConfig.width}
-                        fill={`url(#${sheetPatId})`}
+                        fill="#ffffff"
                         stroke="#f59e0b"
-                        strokeWidth="6"
+                        strokeWidth="8"
+                      />
+                      <rect
+                        x="0"
+                        y="0"
+                        width={sheetConfig.length}
+                        height={sheetConfig.width}
+                        fill="url(#tech_grid)"
                       />
 
                       {/* Linha de Refilo */}
@@ -2033,12 +2034,12 @@ export const CuttingPlanModule: React.FC<CuttingPlanModuleProps> = ({
                         height={sheetConfig.width - (sheetConfig.trimMargin * 2)}
                         fill="none"
                         stroke="#ef4444"
-                        strokeWidth="3"
-                        strokeDasharray="15,10"
-                        opacity="0.7"
+                        strokeWidth="4"
+                        strokeDasharray="20,12"
+                        opacity="0.85"
                       />
 
-                      {/* Peças Posicionadas com cor, veia do MDF e controle interativo de posição/giro */}
+                      {/* Peças Posicionadas com cores, texturas e nomes altamente visíveis */}
                       {currentActiveSheet.pieces.map((p, pIdx) => {
                         const pKey = `${selectedSheetView}_${pIdx}`;
                         const isSelected = selectedPlacedKey === pKey;
@@ -2049,9 +2050,6 @@ export const CuttingPlanModule: React.FC<CuttingPlanModuleProps> = ({
                         const effY = Math.round(p.y + offset.dy);
 
                         const patId = `grain_piece_${pIdx}_${sanitizeId(p.piece.material)}`;
-                        const piecePalette = getMaterialPalette(p.piece.material);
-                        const textColor = parseInt(piecePalette.base.replace('#',''), 16) > 0xaaaaaa ? '#1a1a1a' : '#ffffff';
-                        const dimColor = parseInt(piecePalette.base.replace('#',''), 16) > 0xaaaaaa ? '#444400' : '#fef08a';
 
                         return (
                           <g 
@@ -2066,12 +2064,12 @@ export const CuttingPlanModule: React.FC<CuttingPlanModuleProps> = ({
                           >
                             {/* Retângulo da Peça – Sombra */}
                             <rect
-                              x={effX + 3}
-                              y={effY + 3}
-                              width={effW - 6}
-                              height={effH - 6}
-                              fill="#00000035"
-                              rx="4"
+                              x={effX + 4}
+                              y={effY + 4}
+                              width={effW - 8}
+                              height={effH - 8}
+                              fill="#00000040"
+                              rx="6"
                             />
                             {/* Corpo Principal da Peça com Textura do MDF */}
                             <rect
@@ -2080,66 +2078,68 @@ export const CuttingPlanModule: React.FC<CuttingPlanModuleProps> = ({
                               width={effW}
                               height={effH}
                               fill={`url(#${patId})`}
-                              stroke={isSelected ? '#f59e0b' : '#ffffff'}
-                              strokeWidth={isSelected ? '8' : '4'}
-                              rx="4"
+                              stroke={isSelected ? '#f59e0b' : '#0f172a'}
+                              strokeWidth={isSelected ? '10' : '5'}
+                              rx="6"
                             />
-                            {/* Brilho sutil no topo da peça */}
+                            {/* Borda interna brilhante */}
                             <rect
-                              x={effX}
-                              y={effY}
-                              width={effW}
-                              height={Math.min(effH * 0.15, 60)}
-                              fill="#ffffff18"
+                              x={effX + 3}
+                              y={effY + 3}
+                              width={effW - 6}
+                              height={effH - 6}
+                              fill="none"
+                              stroke="#ffffff"
+                              strokeWidth="2"
                               rx="4"
+                              opacity="0.6"
                             />
 
                             {/* Destaque quando Selecionada */}
                             {isSelected && (
                               <>
                                 <rect
-                                  x={effX - 6}
-                                  y={effY - 6}
-                                  width={effW + 12}
-                                  height={effH + 12}
+                                  x={effX - 8}
+                                  y={effY - 8}
+                                  width={effW + 16}
+                                  height={effH + 16}
                                   fill="none"
                                   stroke="#f59e0b"
-                                  strokeWidth="3"
-                                  strokeDasharray="12,6"
-                                  rx="8"
-                                  opacity="0.9"
+                                  strokeWidth="5"
+                                  strokeDasharray="16,8"
+                                  rx="10"
+                                  opacity="0.95"
                                 />
-                                {/* Marcadores de Canto (Handles) */}
-                                <circle cx={effX} cy={effY} r="8" fill="#f59e0b" stroke="#ffffff" strokeWidth="2" />
-                                <circle cx={effX + effW} cy={effY} r="8" fill="#f59e0b" stroke="#ffffff" strokeWidth="2" />
-                                <circle cx={effX} cy={effY + effH} r="8" fill="#f59e0b" stroke="#ffffff" strokeWidth="2" />
-                                <circle cx={effX + effW} cy={effY + effH} r="8" fill="#f59e0b" stroke="#ffffff" strokeWidth="2" />
+                                <circle cx={effX} cy={effY} r="10" fill="#f59e0b" stroke="#ffffff" strokeWidth="3" />
+                                <circle cx={effX + effW} cy={effY} r="10" fill="#f59e0b" stroke="#ffffff" strokeWidth="3" />
+                                <circle cx={effX} cy={effY + effH} r="10" fill="#f59e0b" stroke="#ffffff" strokeWidth="3" />
+                                <circle cx={effX + effW} cy={effY + effH} r="10" fill="#f59e0b" stroke="#ffffff" strokeWidth="3" />
                               </>
                             )}
 
                             {/* Indicação de Fita de Borda */}
                             {p.piece.edgeBanding.top && (
-                              <line x1={effX} y1={effY} x2={effX + effW} y2={effY} stroke="#fef08a" strokeWidth="8" strokeDasharray="8,5" />
+                              <line x1={effX} y1={effY} x2={effX + effW} y2={effY} stroke="#eab308" strokeWidth="12" strokeDasharray="12,6" />
                             )}
                             {p.piece.edgeBanding.bottom && (
-                              <line x1={effX} y1={effY + effH} x2={effX + effW} y2={effY + effH} stroke="#fef08a" strokeWidth="8" strokeDasharray="8,5" />
+                              <line x1={effX} y1={effY + effH} x2={effX + effW} y2={effY + effH} stroke="#eab308" strokeWidth="12" strokeDasharray="12,6" />
                             )}
                             {p.piece.edgeBanding.left && (
-                              <line x1={effX} y1={effY} x2={effX} y2={effY + effH} stroke="#fef08a" strokeWidth="8" strokeDasharray="8,5" />
+                              <line x1={effX} y1={effY} x2={effX} y2={effY + effH} stroke="#eab308" strokeWidth="12" strokeDasharray="12,6" />
                             )}
                             {p.piece.edgeBanding.right && (
-                              <line x1={effX + effW} y1={effY} x2={effX + effW} y2={effY + effH} stroke="#fef08a" strokeWidth="8" strokeDasharray="8,5" />
+                              <line x1={effX + effW} y1={effY} x2={effX + effW} y2={effY + effH} stroke="#eab308" strokeWidth="12" strokeDasharray="12,6" />
                             )}
 
-                            {/* Número da peça (badge) */}
-                            {effW > 100 && effH > 80 && (
+                            {/* Número da peça (badge circular em destaque) */}
+                            {effW > 80 && effH > 60 && (
                               <>
-                                <circle cx={effX + 22} cy={effY + 22} r="18" fill={isSelected ? '#f59e0b' : '#00000050'} />
+                                <circle cx={effX + 26} cy={effY + 26} r="20" fill={isSelected ? '#f59e0b' : '#0f172a'} stroke="#ffffff" strokeWidth="2.5" />
                                 <text
-                                  x={effX + 22}
-                                  y={effY + 22}
+                                  x={effX + 26}
+                                  y={effY + 26}
                                   fill={isSelected ? '#000000' : '#ffffff'}
-                                  fontSize="18"
+                                  fontSize="20"
                                   fontWeight="900"
                                   textAnchor="middle"
                                   dominantBaseline="central"
@@ -2149,33 +2149,48 @@ export const CuttingPlanModule: React.FC<CuttingPlanModuleProps> = ({
                               </>
                             )}
 
-                            {/* Rótulo da Peça */}
-                            {effW > 150 && effH > 100 && (
-                              <text
-                                x={effX + effW / 2}
-                                y={effY + effH / 2 - 18}
-                                fill={textColor}
-                                fontSize={Math.min(36, effW / 12)}
-                                fontWeight="bold"
-                                textAnchor="middle"
-                                dominantBaseline="central"
-                                style={{ textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}
-                              >
-                                {p.piece.name}
-                              </text>
-                            )}
-                            {effW > 120 && effH > 70 && (
-                              <text
-                                x={effX + effW / 2}
-                                y={effY + effH / 2 + 28}
-                                fill={dimColor}
-                                fontSize={Math.min(28, effW / 16)}
-                                fontWeight="900"
-                                textAnchor="middle"
-                                dominantBaseline="central"
-                              >
-                                {toDisplay(effW)} x {toDisplay(effH)} {unitLabel} {offset.rotated ? '🔄' : ''}
-                              </text>
+                            {/* Rótulo da Peça - ALTA VISIBILIDADE com Badge Branco/Preto */}
+                            {effW > 60 && effH > 40 && (
+                              <g>
+                                {/* Fundo branco opaco para legibilidade máxima */}
+                                <rect
+                                  x={effX + (effW - Math.min(effW - 20, Math.max(140, (p.piece.name.length + 4) * (Math.min(effW / 8, 42) * 0.6)))) / 2}
+                                  y={effY + effH / 2 - (effH > 90 ? 36 : 22)}
+                                  width={Math.min(effW - 20, Math.max(140, (p.piece.name.length + 4) * (Math.min(effW / 8, 42) * 0.6)))}
+                                  height={effH > 90 ? 72 : 44}
+                                  fill="#ffffff"
+                                  fillOpacity="0.94"
+                                  stroke="#0f172a"
+                                  strokeWidth="2.5"
+                                  rx="8"
+                                />
+                                {/* Nome da Peça em Preto Negrito */}
+                                <text
+                                  x={effX + effW / 2}
+                                  y={effY + effH / 2 - (effH > 90 ? 12 : 2)}
+                                  fill="#0f172a"
+                                  fontSize={Math.max(16, Math.min(42, Math.min(effW / 8, effH / 3.5)))}
+                                  fontWeight="900"
+                                  textAnchor="middle"
+                                  dominantBaseline="central"
+                                >
+                                  {p.piece.name}
+                                </text>
+                                {/* Dimensões da Peça em Destaque Âmbar/Marrom */}
+                                {effH > 90 && (
+                                  <text
+                                    x={effX + effW / 2}
+                                    y={effY + effH / 2 + 18}
+                                    fill="#b45309"
+                                    fontSize={Math.max(14, Math.min(32, Math.min(effW / 11, effH / 5)))}
+                                    fontWeight="900"
+                                    textAnchor="middle"
+                                    dominantBaseline="central"
+                                  >
+                                    {toDisplay(effW)} x {toDisplay(effH)} {unitLabel} {offset.rotated ? '🔄' : ''}
+                                  </text>
+                                )}
+                              </g>
                             )}
 
                             {/* Botão Rápido de Editar Medidas e Nome na própria peça */}
@@ -2188,18 +2203,18 @@ export const CuttingPlanModule: React.FC<CuttingPlanModuleProps> = ({
                                 className="cursor-pointer hover:opacity-100 opacity-90 transition-opacity"
                               >
                                 <circle 
-                                  cx={effX + effW - 58} 
-                                  cy={effY + 22} 
-                                  r="16" 
+                                  cx={effX + effW - 64} 
+                                  cy={effY + 26} 
+                                  r="18" 
                                   fill="#9333ea" 
                                   stroke="#ffffff" 
-                                  strokeWidth="2" 
+                                  strokeWidth="2.5" 
                                 />
                                 <text
-                                  x={effX + effW - 58}
-                                  y={effY + 22}
+                                  x={effX + effW - 64}
+                                  y={effY + 26}
                                   fill="#ffffff"
-                                  fontSize="13"
+                                  fontSize="15"
                                   fontWeight="900"
                                   textAnchor="middle"
                                   dominantBaseline="central"
@@ -2219,18 +2234,18 @@ export const CuttingPlanModule: React.FC<CuttingPlanModuleProps> = ({
                                 className="cursor-pointer hover:opacity-100 opacity-90 transition-opacity"
                               >
                                 <circle 
-                                  cx={effX + effW - 22} 
-                                  cy={effY + 22} 
-                                  r="16" 
+                                  cx={effX + effW - 26} 
+                                  cy={effY + 26} 
+                                  r="18" 
                                   fill="#f59e0b" 
                                   stroke="#ffffff" 
-                                  strokeWidth="2" 
+                                  strokeWidth="2.5" 
                                 />
                                 <text
-                                  x={effX + effW - 22}
-                                  y={effY + 22}
+                                  x={effX + effW - 26}
+                                  y={effY + 26}
                                   fill="#000000"
-                                  fontSize="14"
+                                  fontSize="16"
                                   fontWeight="900"
                                   textAnchor="middle"
                                   dominantBaseline="central"
@@ -2251,9 +2266,9 @@ export const CuttingPlanModule: React.FC<CuttingPlanModuleProps> = ({
             {/* Legenda do Mapa */}
             <div className="flex items-center justify-between text-xs text-gray-400 flex-wrap gap-2 pt-1 px-1">
               <div className="flex items-center gap-4 flex-wrap">
-                <span className="flex items-center gap-1.5"><span className="w-3 h-3 bg-emerald-600 rounded"></span> Peças Cortadas</span>
-                <span className="flex items-center gap-1.5"><span className="w-3 h-3 bg-[#1e2430] border border-amber-500 rounded"></span> Retalhos / Sobra</span>
-                <span className="flex items-center gap-1.5"><span className="w-3 h-1 bg-yellow-300"></span> Fita de Borda</span>
+                <span className="flex items-center gap-1.5"><span className="w-3 h-3 bg-amber-400 rounded border border-black"></span> Peças Cortadas</span>
+                <span className="flex items-center gap-1.5"><span className="w-3 h-3 bg-white border-2 border-amber-500 rounded"></span> Chapa / Fundo Branco</span>
+                <span className="flex items-center gap-1.5"><span className="w-3.5 h-1 bg-yellow-400 border border-black"></span> Fita de Borda</span>
                 <span className="flex items-center gap-1.5">🔄 Peça Rotacionada 90°</span>
               </div>
               <span className="font-semibold text-gray-300">Chapa {selectedSheetView + 1} de {optimizedSheets.length}</span>
