@@ -10,7 +10,7 @@ import {
   Printer, ShoppingCart, CheckSquare, Sparkles, Camera, Eye, X, Loader2,
   FileText, ExternalLink, Check, Download, User, PenLine, Pencil,
   Folder, FolderPlus, FolderOpen, FolderCheck, LayoutGrid, List,
-  MessageCircle, Send, Percent, ChevronDown, Scissors, Layout
+  MessageCircle, Send, Percent, ChevronDown, Scissors, Layout, Settings
 } from 'lucide-react';
 import { CuttingPlanModule } from './CuttingPlanModule';
 import { AntigravityAIStudio } from './AntigravityAIStudio';
@@ -2538,6 +2538,20 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
               <span>SD IA</span>
             </button>
 
+            {/* ABA CONFIGURAÇÃO */}
+            <button
+              onClick={() => setActiveTab('configuration')}
+              className={`px-3.5 py-1.5 font-bold text-xs rounded-xl flex items-center gap-1.5 transition-all cursor-pointer shrink-0 shadow-sm ${
+                activeTab === 'configuration'
+                  ? 'bg-amber-500 text-black shadow-md ring-2 ring-amber-500/50 font-black'
+                  : 'bg-white/5 text-gray-300 hover:text-white border border-white/10 hover:border-amber-500/40'
+              }`}
+              title="Abrir Configurações e Ferramentas"
+            >
+              <Settings className={`w-3.5 h-3.5 ${activeTab === 'configuration' ? 'text-black' : 'text-amber-400'}`} />
+              <span>Configuração</span>
+            </button>
+
             {/* ABAS CUSTOMIZADAS */}
             {customMainTabs.map(t => (
               <div key={t.id} className="relative group flex items-center shrink-0">
@@ -2925,79 +2939,7 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
 
       {/* ─── TAB 2: COMPARATIVO DE PREÇOS (PRODUTO MAIS BARATO) ───────────── */}
       {activeTab === 'comparison' && (
-        <div className="space-y-6">
-
-          {/* Cabeçalho de Ações do Comparativo - Premium Glass Design */}
-          <div className="relative overflow-hidden bg-gradient-to-br from-slate-900/95 via-[#0e131b]/90 to-slate-900/95 border border-amber-500/20 backdrop-blur-xl p-4 sm:p-6 rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 sm:gap-5">
-            <div className="absolute top-0 right-0 w-80 h-32 bg-amber-500/5 blur-3xl pointer-events-none rounded-full" />
-            <div className="absolute -bottom-10 left-10 w-48 h-20 bg-emerald-500/5 blur-2xl pointer-events-none rounded-full" />
-
-            <div className="flex items-center gap-3 sm:gap-4 relative z-10">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 p-2.5 sm:p-3 rounded-xl sm:rounded-2xl bg-gradient-to-br from-amber-500/20 to-amber-500/5 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0 shadow-lg shadow-amber-500/10">
-                <BarChart3 className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400 drop-shadow" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-                  <h2 className="text-lg sm:text-2xl font-black bg-gradient-to-r from-white via-slate-100 to-amber-200 bg-clip-text text-transparent tracking-tight">
-                    Comparativo Geral de Preços
-                  </h2>
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 shadow-inner">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    {activeComparisons.length} Produtos com Cotação
-                  </span>
-                </div>
-                <p className="text-slate-400 text-[11px] sm:text-xs mt-0.5 sm:mt-1 font-medium">
-                  Compare cotações de fornecedores cadastrados e compre direto pelo menor valor garantido
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2.5 flex-wrap shrink-0 relative z-10 w-full xl:w-auto justify-start xl:justify-end">
-              <button
-                onClick={() => setShowPriceAdjustmentModal(true)}
-                className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:border-amber-400/50 px-3.5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98]"
-                title="Reajustar preços em porcentagem (%) por categoria ou fornecedor"
-              >
-                <Percent className="w-4 h-4 text-amber-400" />
-                <span>Reajustar Preços (%)</span>
-              </button>
-
-              <button 
-                onClick={() => batchFileInputRef.current?.click()}
-                className="bg-purple-500/15 hover:bg-purple-500/25 text-purple-200 border border-purple-500/30 hover:border-purple-400/50 font-bold px-3.5 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98]"
-                title="Abrir PDF ou Tirar Foto do orçamento com leitura automática por IA"
-              >
-                <FileText className="w-4 h-4 text-purple-300" />
-                <span>Abrir PDF / Foto</span>
-              </button>
-
-              <button 
-                onClick={() => { setShowTextImportModal(true); setTextImportInput(''); }}
-                className="bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-200 border border-indigo-500/30 hover:border-indigo-400/50 font-bold px-3.5 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98]"
-                title="Descrever itens por texto com leitura automática por IA"
-              >
-                <PenLine className="w-4 h-4 text-indigo-300" />
-                <span>Descrever por Texto</span>
-              </button>
-
-              <button 
-                onClick={() => setShowProdForm(true)} 
-                className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Adicionar Produto</span>
-              </button>
-
-              <button
-                onClick={handleDeleteUncomparedProducts}
-                className="bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/25 hover:border-red-500/40 px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm"
-                title="Excluir permanentemente produtos que não possuem cotações comparativas entre fornecedores"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>Excluir sem Comparação</span>
-              </button>
-            </div>
-          </div>
+        <div className="space-y-4 sm:space-y-6">
 
           {/* Stats Header - High Tech Widgets */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -4227,6 +4169,195 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
           }}
           onNavigateToCuttingPlan={() => setActiveTab('cutting_plan')}
         />
+      )}
+
+      {/* ─── TAB: CONFIGURAÇÃO & FERRAMENTAS ────────────────────────────── */}
+      {activeTab === 'configuration' && (
+        <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300">
+          
+          {/* CABEÇALHO DA ABA CONFIGURAÇÃO */}
+          <div className="relative overflow-hidden bg-gradient-to-br from-slate-900/95 via-[#11141b]/90 to-slate-900/95 border border-amber-500/30 backdrop-blur-xl p-5 sm:p-6 rounded-3xl shadow-2xl">
+            <div className="absolute top-0 right-0 w-80 h-32 bg-amber-500/10 blur-3xl pointer-events-none rounded-full" />
+            <div className="flex items-center gap-4 relative z-10">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0 shadow-lg">
+                <Settings className="w-6 h-6 text-amber-400" />
+              </div>
+              <div>
+                <h2 className="text-xl sm:text-2xl font-black bg-gradient-to-r from-white via-slate-100 to-amber-300 bg-clip-text text-transparent">
+                  Central de Configuração &amp; Ferramentas
+                </h2>
+                <p className="text-slate-400 text-xs mt-1">
+                  Ações rápidas de reajuste de preços, importação inteligente por IA, cadastro de produtos e gestão
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* BARRA DE AÇÕES RÁPIDAS (EXATAMENTE OS 5 BOTÕES SOLICITADOS) */}
+          <div className="bg-[#121418] border border-white/10 p-4 sm:p-5 rounded-3xl shadow-xl space-y-3">
+            <h3 className="text-xs font-black text-amber-400 uppercase tracking-wider flex items-center gap-2">
+              <Sparkles className="w-3.5 h-3.5" /> Ações Rápidas &amp; Ferramentas do Sistema
+            </h3>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+              {/* 1. Reajustar Preços */}
+              <button
+                onClick={() => setShowPriceAdjustmentModal(true)}
+                className="bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 hover:text-amber-200 border border-amber-500/40 p-4 rounded-2xl text-xs font-black flex flex-col items-center justify-center gap-2 transition-all shadow-md hover:scale-[1.02] active:scale-[0.98] group"
+              >
+                <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 group-hover:scale-110 transition-transform">
+                  <Percent className="w-5 h-5" />
+                </div>
+                <span>% Reajustar Preços (%)</span>
+              </button>
+
+              {/* 2. Abrir PDF / Foto */}
+              <button 
+                onClick={() => batchFileInputRef.current?.click()}
+                className="bg-purple-500/15 hover:bg-purple-500/25 text-purple-200 hover:text-white border border-purple-500/40 p-4 rounded-2xl text-xs font-black flex flex-col items-center justify-center gap-2 transition-all shadow-md hover:scale-[1.02] active:scale-[0.98] group"
+              >
+                <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-500/30 flex items-center justify-center text-purple-300 group-hover:scale-110 transition-transform">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <span>📄 Abrir PDF / Foto</span>
+              </button>
+
+              {/* 3. Descrever por Texto */}
+              <button 
+                onClick={() => { setShowTextImportModal(true); setTextImportInput(''); }}
+                className="bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-200 hover:text-white border border-indigo-500/40 p-4 rounded-2xl text-xs font-black flex flex-col items-center justify-center gap-2 transition-all shadow-md hover:scale-[1.02] active:scale-[0.98] group"
+              >
+                <div className="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-300 group-hover:scale-110 transition-transform">
+                  <PenLine className="w-5 h-5" />
+                </div>
+                <span>✏️ Descrever por Texto</span>
+              </button>
+
+              {/* 4. Adicionar Produto */}
+              <button 
+                onClick={() => setShowProdForm(true)} 
+                className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white border border-emerald-400/40 p-4 rounded-2xl text-xs font-black flex flex-col items-center justify-center gap-2 transition-all shadow-md hover:scale-[1.02] active:scale-[0.98] group"
+              >
+                <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-white group-hover:scale-110 transition-transform">
+                  <Plus className="w-5 h-5" />
+                </div>
+                <span>+ Adicionar Produto</span>
+              </button>
+
+              {/* 5. Excluir sem Comparação */}
+              <button
+                onClick={handleDeleteUncomparedProducts}
+                className="bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/30 p-4 rounded-2xl text-xs font-black flex flex-col items-center justify-center gap-2 transition-all shadow-md hover:scale-[1.02] active:scale-[0.98] group"
+              >
+                <div className="w-10 h-10 rounded-xl bg-red-500/20 border border-red-500/30 flex items-center justify-center text-red-400 group-hover:scale-110 transition-transform">
+                  <Trash2 className="w-5 h-5" />
+                </div>
+                <span>🗑️ Excluir sem Comparação</span>
+              </button>
+            </div>
+          </div>
+
+          {/* PAINEL DE GESTÃO DE FORNECEDORES & DADOS */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            
+            {/* CARD FORNECEDORES */}
+            <div className="bg-[#121418] border border-white/10 p-5 rounded-3xl space-y-3">
+              <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
+                <h4 className="text-xs font-black text-white flex items-center gap-2">
+                  <Building className="w-4 h-4 text-amber-400" />
+                  Fornecedores Cadastrados ({suppliers.length})
+                </h4>
+                <button
+                  onClick={() => {
+                    setEditingId(null);
+                    setForm({ name: '', cnpj: '', phone: '', email: '', address: '', category: 'Geral', notes: '' });
+                    setShowForm(true);
+                  }}
+                  className="bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 px-2.5 py-1 rounded-xl text-xs font-bold"
+                >
+                  + Novo Fornecedor
+                </button>
+              </div>
+
+              <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                {suppliers.map(s => (
+                  <div key={s.id} className="bg-white/5 border border-white/10 p-3 rounded-2xl flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-black text-white">🏢 {s.name}</p>
+                      <p className="text-[10px] text-gray-400">{s.category || 'Geral'} {s.phone ? `• Tel: ${s.phone}` : ''}</p>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => {
+                          setEditingId(s.id);
+                          setForm({
+                            name: s.name,
+                            cnpj: s.cnpj || '',
+                            phone: s.phone || '',
+                            email: s.email || '',
+                            address: s.address || '',
+                            category: s.category || 'Geral',
+                            notes: s.notes || ''
+                          });
+                          setShowForm(true);
+                        }}
+                        className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white"
+                        title="Editar Fornecedor"
+                      >
+                        <Edit className="w-3.5 h-3.5 text-blue-400" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteSupplier(s.id)}
+                        className="p-1.5 rounded-lg bg-white/5 hover:bg-red-500/20 text-gray-400 hover:text-red-400"
+                        title="Excluir Fornecedor"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* CARD RESUMO DO BANCO DE DADOS & ATALHOS */}
+            <div className="bg-[#121418] border border-white/10 p-5 rounded-3xl space-y-3">
+              <h4 className="text-xs font-black text-white flex items-center gap-2 border-b border-white/10 pb-2.5">
+                <BarChart3 className="w-4 h-4 text-emerald-400" />
+                Resumo do Sistema &amp; Estatísticas
+              </h4>
+
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div className="bg-white/5 border border-white/10 p-3 rounded-2xl">
+                  <span className="text-[10px] text-gray-400 uppercase block font-bold">Total de Produtos</span>
+                  <span className="text-xl font-black text-white mt-1 block">{comparisons.length} itens</span>
+                </div>
+                <div className="bg-white/5 border border-white/10 p-3 rounded-2xl">
+                  <span className="text-[10px] text-gray-400 uppercase block font-bold">Pastas de Clientes</span>
+                  <span className="text-xl font-black text-amber-300 mt-1 block">{clientFolders.length} pastas</span>
+                </div>
+                <div className="bg-white/5 border border-white/10 p-3 rounded-2xl">
+                  <span className="text-[10px] text-gray-400 uppercase block font-bold">Fornecedores Ativos</span>
+                  <span className="text-xl font-black text-emerald-400 mt-1 block">{suppliers.length} empresas</span>
+                </div>
+                <div className="bg-white/5 border border-white/10 p-3 rounded-2xl">
+                  <span className="text-[10px] text-gray-400 uppercase block font-bold">Economia Identificada</span>
+                  <span className="text-xl font-black text-teal-300 mt-1 block">R$ {totalSavingsPotential.toFixed(2)}</span>
+                </div>
+              </div>
+
+              <div className="pt-2 flex items-center justify-between">
+                <button
+                  onClick={() => setActiveTab('comparison')}
+                  className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 shadow-md transition-all"
+                >
+                  <BarChart3 className="w-4 h-4" /> Ir para Comparativo Geral
+                </button>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
       )}
 
       </div>
