@@ -1049,16 +1049,16 @@ export const CuttingPlanModule: React.FC<CuttingPlanModuleProps> = ({
     msg += `\n📎 *PDF Gráfico com o Desenho 2D de todas as chapas foi baixado! Segue anexo nesta conversa.* 📄\n`;
     msg += `\n✨ _Gerado via SDcomparativo - Otimizador Inteligente_`;
 
-    // 2. Abrir DIRETAMENTE a conversa no WhatsApp Web com o número digitado (sem texto na caixa de entrada)
+    // 2. Abrir DIRETAMENTE a conversa no WhatsApp com o número e mensagem preenchidos
     const url = cleanPhone
-      ? `https://api.whatsapp.com/send?phone=${cleanPhone}`
-      : `https://api.whatsapp.com/send`;
+      ? `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(msg)}`
+      : `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
 
     window.open(url, '_blank');
     setShowWhatsAppModal(false);
     toast({ 
-      title: `🚀 WhatsApp aberto ${cleanPhone ? `para ${cleanPhone}` : ''}!`,
-      description: `O arquivo "${fileName}" foi salvo nos seus Downloads. Basta arrastá-lo para o chat.`
+      title: `🚀 WhatsApp aberto ${cleanPhone ? `para +${cleanPhone}` : ''}!`,
+      description: `O arquivo "${fileName}" foi gerado e baixado para seu aparelho.`
     });
   };
 
@@ -1212,8 +1212,8 @@ export const CuttingPlanModule: React.FC<CuttingPlanModuleProps> = ({
       {/* ─── CARD UNIFICADO: ADICIONAR PEÇA AO PLANO DE CORTE + BARRA DE AÇÕES ORGANIZADA ─── */}
       <div className="bg-gradient-to-br from-[#121418] via-[#101216] to-[#121418] border border-amber-500/25 p-5 rounded-3xl shadow-2xl space-y-4">
         
-        {/* CABEÇALHO DO CARD COM TODAS AS AÇÕES INTEGRADAS E ORGANIZADAS */}
-        <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 pb-3 border-b border-white/10">
+        {/* CABEÇALHO DO CARD - LIMPO E PADRONIZADO */}
+        <div className="flex items-center justify-between gap-3 pb-3 border-b border-white/10">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
               <Plus className="w-4 h-4" />
@@ -1242,181 +1242,6 @@ export const CuttingPlanModule: React.FC<CuttingPlanModuleProps> = ({
                 (Cancelar Edição)
               </button>
             )}
-          </div>
-
-          {/* BARRA DE AÇÕES INTEGRADA DENTRO DO CARD */}
-          <div className="flex items-center gap-2 flex-wrap shrink-0">
-            {/* SELETOR DE UNIDADE: MM, CM, MT */}
-            <div className="bg-[#101216] border border-amber-500/40 p-0.5 rounded-xl flex items-center gap-0.5 shadow-md">
-              {(['mm', 'cm', 'm'] as DimensionUnit[]).map((u) => {
-                const label = u === 'm' ? 'MT' : u.toUpperCase();
-                const isSelected = unit === u;
-                return (
-                  <button
-                    key={u}
-                    onClick={() => {
-                      setUnit(u);
-                      toast({ title: `📏 Unidade alterada para ${label}` });
-                    }}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all ${
-                      isSelected
-                        ? 'bg-amber-500 text-black shadow-md'
-                        : 'text-gray-400 hover:text-white hover:bg-white/5'
-                    }`}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
-
-            <button
-              onClick={handleAutoOrganizePieces}
-              className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow-md transition-all hover:scale-[1.02] border border-emerald-400/30"
-              title="Reotimizar e alinhar todas as peças automaticamente"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-yellow-300" />
-              <span>Organizar Peças</span>
-            </button>
-
-            <button
-              onClick={() => setShowConfigModal(true)}
-              className="bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white border border-white/10 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm"
-              title="Configurar dimensões da chapa, espessura da serra e refilo"
-            >
-              <Sliders className="w-3.5 h-3.5 text-amber-400" />
-              <span>Configurar Chapa</span>
-            </button>
-
-            {/* DROPDOWN WHATSAPP */}
-            <div className="relative">
-              <button
-                onClick={() => setShowWhatsAppModal(!showWhatsAppModal)}
-                className="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow-md transition-all hover:scale-[1.02] border border-emerald-400/40"
-                title="Escolher fornecedor/contato e enviar pelo WhatsApp com PDF 2D"
-              >
-                <MessageCircle className="w-3.5 h-3.5" />
-                <span>WhatsApp (c/ PDF e Desenho)</span>
-                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showWhatsAppModal ? 'rotate-180' : ''}`} />
-              </button>
-
-              {showWhatsAppModal && (
-                <div className="absolute right-0 top-full mt-2 w-88 sm:w-96 bg-[#161821] border-2 border-emerald-400/80 rounded-2xl shadow-2xl p-4 z-[9999] text-white space-y-3.5 animate-in fade-in zoom-in-95">
-                  <div className="flex justify-between items-center border-b border-white/10 pb-2">
-                    <span className="text-xs font-black text-emerald-400 flex items-center gap-1.5">
-                      <MessageCircle className="w-4 h-4" /> Enviar PDF por WhatsApp
-                    </span>
-                    <button 
-                      onClick={() => setShowWhatsAppModal(false)}
-                      className="text-gray-400 hover:text-white text-xs p-1"
-                    >
-                      ✕
-                    </button>
-                  </div>
-
-                  {/* 1. ENVIAR PARA NÚMERO DIGITADO */}
-                  <div className="bg-emerald-500/10 border border-emerald-500/30 p-2.5 rounded-xl space-y-1.5">
-                    <div className="text-[10px] font-black text-emerald-300 uppercase flex items-center gap-1">
-                      📱 Digite o Número do WhatsApp (DDD + Tel):
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <input
-                        type="text"
-                        value={targetWhatsAppPhone}
-                        onChange={(e) => setTargetWhatsAppPhone(e.target.value)}
-                        placeholder="Ex: 85997682237"
-                        className="w-full bg-[#101216] border border-emerald-500/40 rounded-xl px-2.5 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-400 font-mono font-bold"
-                      />
-                      <button
-                        onClick={() => handleDirectSendWhatsApp(targetWhatsAppPhone, 'Contato Digitado')}
-                        className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black px-3.5 py-1.5 rounded-xl text-xs shrink-0 transition-all flex items-center gap-1 shadow-md"
-                      >
-                        <Send className="w-3 h-3" />
-                        <span>Enviar</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* 2. CADA FORNECEDOR COM OPÇÃO DE DIGITAR CONTATO */}
-                  <div className="space-y-1.5">
-                    <div className="text-[10px] font-bold text-gray-400 uppercase">🏢 Contatos dos Fornecedores:</div>
-                    <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-                      {(suppliers.length > 0 ? suppliers : [
-                        { id: 'flg', name: 'FLG', phone: '11999999999' },
-                        { id: 'gmad', name: 'GMAD', phone: '11988888888' },
-                        { id: 'itaipu', name: 'ITAIPU', phone: '11977777777' },
-                        { id: 'rio_branco', name: 'RIO BRANCO', phone: '11966666666' },
-                      ]).map((sup) => {
-                        const currentPhone = supplierPhones[sup.name] ?? sup.phone ?? '';
-                        return (
-                          <div key={sup.id} className="bg-white/5 border border-white/10 hover:border-emerald-500/40 p-2 rounded-xl transition-all space-y-1">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-black text-white">🏢 {sup.name}</span>
-                              <span className="text-[9px] text-gray-400">Tel / WhatsApp:</span>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                              <input
-                                type="text"
-                                value={currentPhone}
-                                onChange={(e) => handleUpdateSupplierPhone(sup.name, e.target.value)}
-                                placeholder="DDD + Número (ex: 85997682237)"
-                                className="w-full bg-[#101216] border border-white/15 rounded-lg px-2 py-1 text-xs text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-emerald-400 font-mono"
-                              />
-                              <button
-                                onClick={() => handleDirectSendWhatsApp(currentPhone, sup.name)}
-                                className="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-2.5 py-1 rounded-lg text-xs shrink-0 flex items-center gap-1 transition-all"
-                                title={`Enviar PDF diretamente para ${sup.name}`}
-                              >
-                                <Send className="w-3 h-3" />
-                                <span>Enviar</span>
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* 3. CLIENTE DA PASTA ATIVA */}
-                  <div className="pt-1 border-t border-white/10">
-                    <button
-                      onClick={() => handleDirectSendWhatsApp('', `Cliente ${activeFolderName}`)}
-                      className="w-full bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 p-2 rounded-xl flex items-center justify-between text-left transition-all text-amber-300"
-                    >
-                      <div className="flex items-center gap-1.5 text-xs font-black">
-                        <Folder className="w-3.5 h-3.5" /> Pasta {activeFolderName}
-                      </div>
-                      <span className="text-[10px] font-bold">Enviar Direto 🚀</span>
-                    </button>
-                  </div>
-
-                  <button
-                    onClick={() => handleDirectSendWhatsApp('', 'WhatsApp Geral')}
-                    className="w-full text-center text-[10px] text-gray-400 hover:text-emerald-400 pt-1 block transition-colors"
-                  >
-                    Abrir WhatsApp sem número definido →
-                  </button>
-                </div>
-              )}
-            </div>
-
-            <button
-              onClick={() => generateCuttingPlanPDF(true)}
-              className="bg-purple-600 hover:bg-purple-500 text-white font-black px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow-md transition-all hover:scale-[1.02]"
-              title="Baixar PDF com todos os desenhos gráficos 2D das chapas e lista"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Baixar PDF Gráfico</span>
-            </button>
-
-            <button
-              onClick={() => window.print()}
-              className="bg-amber-500 hover:bg-amber-400 text-black font-black px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow-md transition-all hover:scale-[1.02]"
-              title="Imprimir plano de corte detalhado com mapas das chapas"
-            >
-              <Printer className="w-3.5 h-3.5" />
-              <span>Imprimir Plano</span>
-            </button>
           </div>
         </div>
 
@@ -1719,8 +1544,9 @@ export const CuttingPlanModule: React.FC<CuttingPlanModuleProps> = ({
       </div>
 
       {/* ─── VISUALIZADOR 2D INTERATIVO DAS CHAPAS DE CORTE ───────────────── */}
-      <div className="bg-[#121418] border border-amber-500/30 p-5 rounded-3xl shadow-xl space-y-4">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+      <div className="bg-[#121418] border border-amber-500/30 p-4 sm:p-5 rounded-3xl shadow-xl space-y-4">
+        {/* BARRA PRINCIPAL DE AÇÕES DO MAPA DE CORTE */}
+        <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 pb-3 border-b border-white/10">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
               <Eye className="w-4 h-4" />
@@ -1733,52 +1559,225 @@ export const CuttingPlanModule: React.FC<CuttingPlanModuleProps> = ({
             </div>
           </div>
 
-          {/* Seletor de Chapa, Filtros e Alternador de Modo de Clique */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Botão de Organização Automática e Toggles de Modo */}
+          {/* TODAS AS FERRAMENTAS E AÇÕES DA SEGUNDA IMAGEM INCLUÍDAS AQUI */}
+          <div className="flex items-center gap-2 flex-wrap w-full xl:w-auto">
+            {/* SELETOR DE UNIDADE: MM, CM, MT */}
+            <div className="bg-[#101216] border border-amber-500/40 p-0.5 rounded-xl flex items-center gap-0.5 shadow-md">
+              {(['mm', 'cm', 'm'] as DimensionUnit[]).map((u) => {
+                const label = u === 'm' ? 'MT' : u.toUpperCase();
+                const isSelected = unit === u;
+                return (
+                  <button
+                    key={u}
+                    onClick={() => {
+                      setUnit(u);
+                      toast({ title: `📏 Unidade alterada para ${label}` });
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all ${
+                      isSelected
+                        ? 'bg-amber-500 text-black shadow-md'
+                        : 'text-gray-400 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+
             <button
               type="button"
               onClick={handleAutoOrganizePieces}
-              className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow-lg shadow-emerald-950/40 border border-emerald-400/40 transition-all hover:scale-[1.03] active:scale-95 mr-2"
-              title="Organizar todas as peças na chapa com alinhamento e aproveitamento máximo automático"
+              className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow-md transition-all hover:scale-[1.02] border border-emerald-400/30"
+              title="Reotimizar e alinhar todas as peças automaticamente"
             >
-              <Sparkles className="w-3.5 h-3.5 text-yellow-300 animate-spin" />
-              <span>✨ Organizar Peças</span>
+              <Sparkles className="w-3.5 h-3.5 text-yellow-300" />
+              <span>Organizar Peças</span>
             </button>
 
-            {/* Toggle de Modo: Arrastar vs Clicar para Girar */}
-            <div className="bg-[#101216] border border-amber-500/50 p-1 rounded-2xl flex items-center gap-1 shadow-md mr-2">
+            <button
+              type="button"
+              onClick={() => setShowConfigModal(true)}
+              className="bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white border border-white/10 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm"
+              title="Configurar dimensões da chapa, espessura da serra e refilo"
+            >
+              <Sliders className="w-3.5 h-3.5 text-amber-400" />
+              <span>Configurar Chapa</span>
+            </button>
+
+            {/* DROPDOWN WHATSAPP */}
+            <div className="relative">
               <button
                 type="button"
-                onClick={() => {
-                  setInteractionMode('drag');
-                  toast({ title: '🖱️ Modo Arrastar & Mover ativado!' });
-                }}
-                className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${
-                  interactionMode === 'drag'
-                    ? 'bg-amber-500 text-black shadow-md'
-                    : 'text-gray-400 hover:text-white hover:bg-white/5'
-                }`}
+                onClick={() => setShowWhatsAppModal(!showWhatsAppModal)}
+                className="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow-md transition-all hover:scale-[1.02] border border-emerald-400/40"
+                title="Escolher fornecedor/contato e enviar pelo WhatsApp com PDF 2D"
               >
-                <Move className="w-3.5 h-3.5" />
-                <span>Arrastar / Mover</span>
+                <MessageCircle className="w-3.5 h-3.5" />
+                <span>WhatsApp (c/ PDF e Desenho)</span>
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showWhatsAppModal ? 'rotate-180' : ''}`} />
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setInteractionMode('rotate');
-                  toast({ title: '🔄 Modo Clicar para Girar 90° ativado!' });
-                }}
-                className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${
-                  interactionMode === 'rotate'
-                    ? 'bg-amber-500 text-black shadow-md animate-pulse'
-                    : 'text-gray-400 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-                <span>Clicar para Girar 90°</span>
-              </button>
+
+              {showWhatsAppModal && (
+                <div className="absolute right-0 top-full mt-2 w-88 sm:w-96 bg-[#161821] border-2 border-emerald-400/80 rounded-2xl shadow-2xl p-4 z-[9999] text-white space-y-3.5 animate-in fade-in zoom-in-95">
+                  <div className="flex justify-between items-center border-b border-white/10 pb-2">
+                    <span className="text-xs font-black text-emerald-400 flex items-center gap-1.5">
+                      <MessageCircle className="w-4 h-4" /> Enviar PDF por WhatsApp
+                    </span>
+                    <button 
+                      onClick={() => setShowWhatsAppModal(false)}
+                      className="text-gray-400 hover:text-white text-xs p-1"
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  {/* 1. ENVIAR PARA NÚMERO DIGITADO */}
+                  <div className="bg-emerald-500/10 border border-emerald-500/30 p-2.5 rounded-xl space-y-1.5">
+                    <div className="text-[10px] font-black text-emerald-300 uppercase flex items-center gap-1">
+                      📱 Digite o Número do WhatsApp (DDD + Tel):
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="text"
+                        value={targetWhatsAppPhone}
+                        onChange={(e) => setTargetWhatsAppPhone(e.target.value)}
+                        placeholder="Ex: 85997682237"
+                        className="w-full bg-[#101216] border border-emerald-500/40 rounded-xl px-2.5 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-400 font-mono font-bold"
+                      />
+                      <button
+                        onClick={() => handleDirectSendWhatsApp(targetWhatsAppPhone, 'Contato Digitado')}
+                        className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black px-3.5 py-1.5 rounded-xl text-xs shrink-0 transition-all flex items-center gap-1 shadow-md"
+                      >
+                        <Send className="w-3 h-3" />
+                        <span>Enviar</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 2. CADA FORNECEDOR COM OPÇÃO DE DIGITAR CONTATO */}
+                  <div className="space-y-1.5">
+                    <div className="text-[10px] font-bold text-gray-400 uppercase">🏢 Contatos dos Fornecedores:</div>
+                    <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                      {(suppliers.length > 0 ? suppliers : [
+                        { id: 'flg', name: 'FLG', phone: '11999999999' },
+                        { id: 'gmad', name: 'GMAD', phone: '11988888888' },
+                        { id: 'itaipu', name: 'ITAIPU', phone: '11977777777' },
+                        { id: 'rio_branco', name: 'RIO BRANCO', phone: '11966666666' },
+                      ]).map((sup) => {
+                        const currentPhone = supplierPhones[sup.name] ?? sup.phone ?? '';
+                        return (
+                          <div key={sup.id} className="bg-white/5 border border-white/10 hover:border-emerald-500/40 p-2 rounded-xl transition-all space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-black text-white">🏢 {sup.name}</span>
+                              <span className="text-[9px] text-gray-400">Tel / WhatsApp:</span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <input
+                                type="text"
+                                value={currentPhone}
+                                onChange={(e) => handleUpdateSupplierPhone(sup.name, e.target.value)}
+                                placeholder="DDD + Número (ex: 85997682237)"
+                                className="w-full bg-[#101216] border border-white/15 rounded-lg px-2 py-1 text-xs text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-emerald-400 font-mono"
+                              />
+                              <button
+                                onClick={() => handleDirectSendWhatsApp(currentPhone, sup.name)}
+                                className="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-2.5 py-1 rounded-lg text-xs shrink-0 flex items-center gap-1 transition-all"
+                                title={`Enviar PDF diretamente para ${sup.name}`}
+                              >
+                                <Send className="w-3 h-3" />
+                                <span>Enviar</span>
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* 3. CLIENTE DA PASTA ATIVA */}
+                  <div className="pt-1 border-t border-white/10">
+                    <button
+                      onClick={() => handleDirectSendWhatsApp('', `Cliente ${activeFolderName}`)}
+                      className="w-full bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 p-2 rounded-xl flex items-center justify-between text-left transition-all text-amber-300"
+                    >
+                      <div className="flex items-center gap-1.5 text-xs font-black">
+                        <Folder className="w-3.5 h-3.5" /> Pasta {activeFolderName}
+                      </div>
+                      <span className="text-[10px] font-bold">Enviar Direto 🚀</span>
+                    </button>
+                  </div>
+
+                  <button
+                    onClick={() => handleDirectSendWhatsApp('', 'WhatsApp Geral')}
+                    className="w-full text-center text-[10px] text-gray-400 hover:text-emerald-400 pt-1 block transition-colors"
+                  >
+                    Abrir WhatsApp sem número definido →
+                  </button>
+                </div>
+              )}
             </div>
+
+            <button
+              type="button"
+              onClick={() => generateCuttingPlanPDF(true)}
+              className="bg-purple-600 hover:bg-purple-500 text-white font-black px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow-md transition-all hover:scale-[1.02]"
+              title="Baixar PDF com todos os desenhos gráficos 2D das chapas e lista"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Baixar PDF Gráfico</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="bg-amber-500 hover:bg-amber-400 text-black font-black px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow-md transition-all hover:scale-[1.02]"
+              title="Imprimir plano de corte detalhado com mapas das chapas"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              <span>Imprimir Plano</span>
+            </button>
+          </div>
+        </div>
+
+        {/* CONTROLES DE CHAPA E MODOS (ARRASTAR / GIRAR / SELEÇÃO DE CHAPA) */}
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          {/* Toggle de Modo: Arrastar vs Clicar para Girar */}
+          <div className="bg-[#101216] border border-amber-500/50 p-1 rounded-2xl flex items-center gap-1 shadow-md">
+            <button
+              type="button"
+              onClick={() => {
+                setInteractionMode('drag');
+                toast({ title: '🖱️ Modo Arrastar & Mover ativado!' });
+              }}
+              className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${
+                interactionMode === 'drag'
+                  ? 'bg-amber-500 text-black shadow-md'
+                  : 'text-gray-400 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <Move className="w-3.5 h-3.5" />
+              <span>Arrastar / Mover</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setInteractionMode('rotate');
+                toast({ title: '🔄 Modo Clicar para Girar 90° ativado!' });
+              }}
+              className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${
+                interactionMode === 'rotate'
+                  ? 'bg-amber-500 text-black shadow-md animate-pulse'
+                  : 'text-gray-400 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Clicar para Girar 90°</span>
+            </button>
+          </div>
+
+          {/* Abas das Chapas 1, 2, 3... */}
+          <div className="flex items-center gap-1.5 flex-wrap">
             {optimizedSheets.map((s, idx) => (
               <button
                 key={idx}
