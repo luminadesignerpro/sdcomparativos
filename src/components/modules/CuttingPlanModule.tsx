@@ -1015,50 +1015,39 @@ export const CuttingPlanModule: React.FC<CuttingPlanModuleProps> = ({
       cleanPhone = '55' + cleanPhone;
     }
 
-    const destName = recipientLabel || targetWhatsAppName || (activeFolderName ? `Pasta ${activeFolderName}` : 'Fornecedor');
-
-    // 1. Gerar e baixar o PDF Gráfico 2D instantaneamente
+    // 1. Gerar arquivo PDF do Plano de Corte
     const doc = generateCuttingPlanPDF(false);
     const fileName = `Plano_de_Corte_2D_${activeFolderName ? activeFolderName.replace(/\s+/g, '_') : 'SDcomparativo'}.pdf`;
+    const pdfBlob = doc.output('blob');
+    const pdfFile = new File([pdfBlob], fileName, { type: 'application/pdf' });
+
+    // 2. Se o dispositivo suportar compartilhamento nativo de arquivo (ex: Celular), compartilha direto o PDF
+    if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+      try {
+        await navigator.share({
+          files: [pdfFile],
+          title: fileName
+        });
+        setShowWhatsAppModal(false);
+        toast({ title: '📄 PDF compartilhado com sucesso!' });
+        return;
+      } catch (err: any) {
+        if (err.name === 'AbortError') return;
+      }
+    }
+
+    // 3. Fallback: Baixa o PDF no dispositivo e abre o WhatsApp com o número selecionado (SEM mensagem de texto)
     doc.save(fileName);
 
-    let msg = `📐 *PLANO DE CORTE & OTIMIZAÇÃO 2D - ${activeFolderName ? `PASTA ${activeFolderName.toUpperCase()}` : 'SD COMPARATIVO'}*\n`;
-    if (destName) msg += `👤 *Destinatário:* ${destName}\n`;
-    if (clientData.name) msg += `👤 *Cliente:* ${clientData.name}\n`;
-    if (clientData.address) msg += `📍 *Endereço/Obra:* ${clientData.address}\n`;
-    msg += `\n📦 *Total de Chapas:* ${totalSheetsNeeded} un (${sheetConfig.length}x${sheetConfig.width}mm)\n`;
-    msg += `🎯 *Aproveitamento Médio:* ${avgEfficiency}%\n`;
-    msg += `📏 *Fita de Borda Total:* ${totalEdgeBandingMeters} metros lineares\n`;
-    msg += `✂️ *Total de Cortes:* ${totalPiecesCount} peças\n\n`;
-    msg += `📋 *LISTAGEM DE PEÇAS A CORTAR:*\n`;
-
-    pieces.forEach((p, idx) => {
-      const fita = [
-        p.edgeBanding.top ? 'C1' : '',
-        p.edgeBanding.bottom ? 'C2' : '',
-        p.edgeBanding.left ? 'L1' : '',
-        p.edgeBanding.right ? 'L2' : '',
-      ].filter(Boolean).join(',');
-
-      msg += `${idx + 1}. *${p.name}* (${p.material})\n`;
-      msg += `   ${toDisplay(p.length)} x ${toDisplay(p.width)} ${unitLabel} | Qtd: ${p.quantity} un`;
-      if (fita) msg += ` | Fita: [${fita}]`;
-      msg += '\n';
-    });
-
-    msg += `\n📎 *PDF Gráfico com o Desenho 2D de todas as chapas foi baixado! Segue anexo nesta conversa.* 📄\n`;
-    msg += `\n✨ _Gerado via SDcomparativo - Otimizador Inteligente_`;
-
-    // 2. Abrir DIRETAMENTE a conversa no WhatsApp com o número e mensagem preenchidos
     const url = cleanPhone
-      ? `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(msg)}`
-      : `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+      ? `https://api.whatsapp.com/send?phone=${cleanPhone}`
+      : `https://api.whatsapp.com/send`;
 
     window.open(url, '_blank');
     setShowWhatsAppModal(false);
     toast({ 
-      title: `🚀 WhatsApp aberto ${cleanPhone ? `para +${cleanPhone}` : ''}!`,
-      description: `O arquivo "${fileName}" foi gerado e baixado para seu aparelho.`
+      title: `🚀 PDF baixado e WhatsApp aberto ${cleanPhone ? `para +${cleanPhone}` : ''}!`,
+      description: `O arquivo "${fileName}" está pronto. Basta anexá-lo na conversa.`
     });
   };
 
