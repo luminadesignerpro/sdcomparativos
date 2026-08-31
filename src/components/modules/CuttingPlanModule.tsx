@@ -1163,69 +1163,47 @@ export const CuttingPlanModule: React.FC<CuttingPlanModuleProps> = ({
   const currentActiveSheet = optimizedSheets[selectedSheetView] || optimizedSheets[0] || null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
 
-      {/* ─── CABEÇALHO COMPACTO DO PLANO DE CORTE ──────────────── */}
-      <div className="bg-gradient-to-r from-[#14171d] via-[#111317] to-[#14171d] border border-white/10 p-4 rounded-3xl shadow-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-2xl bg-amber-500/15 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0 shadow-md">
-            <Scissors className="w-6 h-6 text-amber-400" />
+      {/* ─── CARDS DE MÉTRICAS EM TEMPO REAL (PADRONIZADO 2x2 NO MOBILE / 4x1 NO DESKTOP) ─── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3.5">
+        <div className="bg-[#111317] border border-amber-500/20 p-3 sm:p-4 rounded-2xl shadow-lg flex items-center gap-2.5 sm:gap-3.5">
+          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+            <Layers className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
-          <div>
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <h2 className="text-lg font-black text-white tracking-wide">
-                Otimizador &amp; Plano de Corte 2D
-              </h2>
-              <span className="bg-amber-500/15 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase flex items-center gap-1">
-                <Folder className="w-3 h-3 text-amber-400" /> Pasta: {activeFolderName}
-              </span>
-            </div>
-            <p className="text-gray-400 text-xs mt-0.5">
-              Otimização de corte guilhotina de MDF/MDP, mapa visual das chapas e cálculo de fita de borda
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* ─── CARDS DE MÉTRICAS EM TEMPO REAL ───────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3.5">
-        <div className="bg-[#111317] border border-white/10 p-4.5 rounded-2xl shadow-lg flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
-            <Layers className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-gray-400 text-[11px] font-semibold uppercase tracking-wider">Chapas Necessárias</p>
-            <p className="text-2xl font-black text-white mt-0.5">{totalSheetsNeeded} <span className="text-xs text-gray-400 font-normal">chapa(s)</span></p>
+          <div className="min-w-0">
+            <p className="text-gray-400 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider truncate">Chapas</p>
+            <p className="text-base sm:text-2xl font-black text-white mt-0.5 leading-tight">{totalSheetsNeeded} <span className="text-[10px] sm:text-xs text-gray-400 font-normal">un</span></p>
           </div>
         </div>
 
-        <div className="bg-[#111317] border border-white/10 p-4.5 rounded-2xl shadow-lg flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
-            <Sparkles className="w-5 h-5" />
+        <div className="bg-[#111317] border border-emerald-500/20 p-3 sm:p-4 rounded-2xl shadow-lg flex items-center gap-2.5 sm:gap-3.5">
+          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+            <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
-          <div>
-            <p className="text-gray-400 text-[11px] font-semibold uppercase tracking-wider">Aproveitamento Médio</p>
-            <p className="text-2xl font-black text-emerald-400 mt-0.5">{avgEfficiency}% <span className="text-xs text-gray-400 font-normal">({100 - avgEfficiency}% sobra)</span></p>
-          </div>
-        </div>
-
-        <div className="bg-[#111317] border border-white/10 p-4.5 rounded-2xl shadow-lg flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0">
-            <Scissors className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-gray-400 text-[11px] font-semibold uppercase tracking-wider">Total de Peças</p>
-            <p className="text-2xl font-black text-blue-400 mt-0.5">{totalPiecesCount} <span className="text-xs text-gray-400 font-normal">cortes</span></p>
+          <div className="min-w-0">
+            <p className="text-gray-400 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider truncate">Aproveitamento</p>
+            <p className="text-base sm:text-2xl font-black text-emerald-400 mt-0.5 leading-tight">{avgEfficiency}%</p>
           </div>
         </div>
 
-        <div className="bg-[#111317] border border-white/10 p-4.5 rounded-2xl shadow-lg flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400 shrink-0">
-            <Sliders className="w-5 h-5" />
+        <div className="bg-[#111317] border border-blue-500/20 p-3 sm:p-4 rounded-2xl shadow-lg flex items-center gap-2.5 sm:gap-3.5">
+          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0">
+            <Scissors className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
-          <div>
-            <p className="text-gray-400 text-[11px] font-semibold uppercase tracking-wider">Fita de Borda</p>
-            <p className="text-2xl font-black text-purple-400 mt-0.5">{totalEdgeBandingMeters} <span className="text-xs text-gray-400 font-normal">metros</span></p>
+          <div className="min-w-0">
+            <p className="text-gray-400 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider truncate">Total Peças</p>
+            <p className="text-base sm:text-2xl font-black text-blue-400 mt-0.5 leading-tight">{totalPiecesCount} <span className="text-[10px] sm:text-xs text-gray-400 font-normal">cortes</span></p>
+          </div>
+        </div>
+
+        <div className="bg-[#111317] border border-purple-500/20 p-3 sm:p-4 rounded-2xl shadow-lg flex items-center gap-2.5 sm:gap-3.5">
+          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400 shrink-0">
+            <Sliders className="w-4 h-4 sm:w-5 sm:h-5" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-gray-400 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider truncate">Fita de Borda</p>
+            <p className="text-base sm:text-2xl font-black text-purple-400 mt-0.5 leading-tight">{totalEdgeBandingMeters} <span className="text-[10px] sm:text-xs text-gray-400 font-normal">m</span></p>
           </div>
         </div>
       </div>
