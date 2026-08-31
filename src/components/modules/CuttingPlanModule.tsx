@@ -26,7 +26,10 @@ import {
   X,
   Maximize2,
   RotateCw,
-  ChevronDown
+  ChevronDown,
+  User,
+  Send,
+  Search
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
