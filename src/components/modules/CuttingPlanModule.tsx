@@ -387,6 +387,7 @@ export const CuttingPlanModule: React.FC<CuttingPlanModuleProps> = ({
   const [formRotate, setFormRotate] = useState<boolean>(true);
   const [formEdgeBanding, setFormEdgeBanding] = useState({ top: true, bottom: false, left: false, right: false });
   const [editingPieceId, setEditingPieceId] = useState<string | null>(null);
+  const [pieceFormTab, setPieceFormTab] = useState<'mdf' | 'fita'>('mdf');
   const [showConfigModal, setShowConfigModal] = useState<boolean>(false);
   const [showWhatsAppModal, setShowWhatsAppModal] = useState<boolean>(false);
   const [targetWhatsAppPhone, setTargetWhatsAppPhone] = useState<string>('');
@@ -1537,122 +1538,184 @@ export const CuttingPlanModule: React.FC<CuttingPlanModuleProps> = ({
           </div>
         </div>
 
-        {/* INPUTS DE MEDIDAS E QUANTIDADE */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-3">
-          <div className="md:col-span-2">
-            <label className="block text-[11px] font-bold text-gray-400 mb-1">Nome / Descrição da Peça</label>
-            <input
-              type="text"
-              value={formName}
-              onChange={e => setFormName(e.target.value)}
-              placeholder="Ex: Lateral Esquerda, Porta, Tampo..."
-              className="w-full bg-[#181b22] border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-500 focus:ring-2 focus:ring-amber-500 focus:outline-none"
-            />
-          </div>
-
-          <div className="md:col-span-1">
-            <label className="block text-[11px] font-bold text-gray-400 mb-1">Material / MDF</label>
-            <select
-              value={formMaterial}
-              onChange={e => setFormMaterial(e.target.value)}
-              className="w-full bg-[#181b22] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
-            >
-              {availableMaterials.map(mat => (
-                <option key={mat} value={mat}>{mat}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="md:col-span-1">
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-[11px] font-bold text-gray-400">Comprimento ({unitLabel})</label>
-            </div>
-            <input
-              type="text"
-              value={formLength}
-              onChange={e => setFormLength(e.target.value)}
-              placeholder={unit === 'm' ? 'Ex: 0.80' : unit === 'cm' ? 'Ex: 80' : 'Ex: 800'}
-              className="w-full bg-[#181b22] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
-            />
-          </div>
-
-          <div className="md:col-span-1">
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-[11px] font-bold text-gray-400">Largura ({unitLabel})</label>
-            </div>
-            <input
-              type="text"
-              value={formWidth}
-              onChange={e => setFormWidth(e.target.value)}
-              placeholder={unit === 'm' ? 'Ex: 0.45' : unit === 'cm' ? 'Ex: 45' : 'Ex: 450'}
-              className="w-full bg-[#181b22] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
-            />
-          </div>
-
-          <div className="md:col-span-1">
-            <label className="block text-[11px] font-bold text-gray-400 mb-1">Quantidade</label>
-            <input
-              type="number"
-              value={formQuantity}
-              min="1"
-              onChange={e => setFormQuantity(Number(e.target.value))}
-              className="w-full bg-[#181b22] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
-            />
-          </div>
-        </div>
-
-        {/* Fita de Borda & Opções Avançadas */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pt-2 border-t border-white/5">
-          <div className="flex items-center gap-3 flex-wrap">
-            <span className="text-[11px] font-bold text-gray-400">Fita de Borda:</span>
-            {[
-              { key: 'top', label: 'C1 (Topo)' },
-              { key: 'bottom', label: 'C2 (Base)' },
-              { key: 'left', label: 'L1 (Esq)' },
-              { key: 'right', label: 'L2 (Dir)' },
-            ].map(side => (
-              <label key={side.key} className="flex items-center gap-1.5 text-xs text-gray-300 cursor-pointer bg-white/5 px-2.5 py-1 rounded-lg hover:bg-white/10 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={Boolean((formEdgeBanding as any)?.[side.key])}
-                  onChange={e => setFormEdgeBanding({
-                    ...formEdgeBanding,
-                    [side.key]: e.target.checked
-                  })}
-                  className="rounded text-amber-500 focus:ring-amber-400 w-3.5 h-3.5"
-                />
-                <span>{side.label}</span>
-              </label>
-            ))}
-
-            <label className="flex items-center gap-1.5 text-xs text-amber-300 cursor-pointer bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 rounded-lg hover:bg-amber-500/20 transition-all">
-              <input
-                type="checkbox"
-                checked={formRotate}
-                onChange={e => setFormRotate(e.target.checked)}
-                className="rounded text-amber-500 focus:ring-amber-400 w-3.5 h-3.5"
-              />
-              <span>Girar Peça (90°)</span>
-            </label>
-
-            <button
-              type="button"
-              onClick={handleSwapFormDimensions}
-              className="flex items-center gap-1 text-xs text-amber-400 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 px-2.5 py-1 rounded-lg transition-all font-bold"
-              title="Inverter Comprimento e Largura (Girar 90° agora)"
-            >
-              <RefreshCw className="w-3.5 h-3.5" /> Inverter Medidas (90°)
-            </button>
-          </div>
-
+        {/* ─── ABA SELECTOR: Descrição do MDF / Fitas de Borda ─── */}
+        <div className="flex items-center gap-1.5 border-b border-white/10 pb-0">
           <button
-            onClick={handleSavePiece}
-            className="bg-amber-500 hover:bg-amber-400 text-black font-black px-5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-md shrink-0"
+            type="button"
+            onClick={() => setPieceFormTab('mdf')}
+            className={`px-4 py-2 rounded-t-xl text-xs font-black uppercase tracking-wider transition-all border-b-2 ${
+              pieceFormTab === 'mdf'
+                ? 'bg-amber-500/15 text-amber-300 border-amber-500'
+                : 'text-gray-500 border-transparent hover:text-gray-300 hover:bg-white/5'
+            }`}
           >
-            <CheckCircle2 className="w-4 h-4" />
-            <span>{editingPieceId ? 'Atualizar Peça' : 'Adicionar ao Plano'}</span>
+            📐 Descrição do MDF
+          </button>
+          <button
+            type="button"
+            onClick={() => setPieceFormTab('fita')}
+            className={`px-4 py-2 rounded-t-xl text-xs font-black uppercase tracking-wider transition-all border-b-2 ${
+              pieceFormTab === 'fita'
+                ? 'bg-amber-500/15 text-amber-300 border-amber-500'
+                : 'text-gray-500 border-transparent hover:text-gray-300 hover:bg-white/5'
+            }`}
+          >
+            🔲 Fitas de Borda
           </button>
         </div>
+
+        {/* ─── TAB CONTENT: Descrição do MDF ─── */}
+        {pieceFormTab === 'mdf' && (
+          <div className="space-y-3 animate-in fade-in">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-3">
+              <div className="md:col-span-2">
+                <label className="block text-[11px] font-bold text-gray-400 mb-1">Nome / Descrição da Peça</label>
+                <input
+                  type="text"
+                  value={formName}
+                  onChange={e => setFormName(e.target.value)}
+                  placeholder="Ex: Lateral Esquerda, Porta, Tampo..."
+                  className="w-full bg-[#181b22] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white placeholder-gray-500 focus:ring-2 focus:ring-amber-500 focus:outline-none transition-all"
+                />
+              </div>
+
+              <div className="md:col-span-1">
+                <label className="block text-[11px] font-bold text-gray-400 mb-1">Material / MDF</label>
+                <select
+                  value={formMaterial}
+                  onChange={e => setFormMaterial(e.target.value)}
+                  className="w-full bg-[#181b22] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:ring-2 focus:ring-amber-500 focus:outline-none transition-all"
+                >
+                  {availableMaterials.map(mat => (
+                    <option key={mat} value={mat}>{mat}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="md:col-span-1">
+                <label className="block text-[11px] font-bold text-gray-400 mb-1">Comprimento ({unitLabel})</label>
+                <input
+                  type="text"
+                  value={formLength}
+                  onChange={e => setFormLength(e.target.value)}
+                  placeholder={unit === 'm' ? 'Ex: 0.80' : unit === 'cm' ? 'Ex: 80' : 'Ex: 800'}
+                  className="w-full bg-[#181b22] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:ring-2 focus:ring-amber-500 focus:outline-none transition-all"
+                />
+              </div>
+
+              <div className="md:col-span-1">
+                <label className="block text-[11px] font-bold text-gray-400 mb-1">Largura ({unitLabel})</label>
+                <input
+                  type="text"
+                  value={formWidth}
+                  onChange={e => setFormWidth(e.target.value)}
+                  placeholder={unit === 'm' ? 'Ex: 0.45' : unit === 'cm' ? 'Ex: 45' : 'Ex: 450'}
+                  className="w-full bg-[#181b22] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:ring-2 focus:ring-amber-500 focus:outline-none transition-all"
+                />
+              </div>
+
+              <div className="md:col-span-1">
+                <label className="block text-[11px] font-bold text-gray-400 mb-1">Quantidade</label>
+                <input
+                  type="number"
+                  value={formQuantity}
+                  min="1"
+                  onChange={e => setFormQuantity(Number(e.target.value))}
+                  className="w-full bg-[#181b22] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:ring-2 focus:ring-amber-500 focus:outline-none transition-all"
+                />
+              </div>
+            </div>
+
+            {/* Botão rápido para ir pra aba de fita */}
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => setPieceFormTab('fita')}
+                className="text-[11px] text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1 transition-colors"
+              >
+                Definir Fita de Borda →
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ─── TAB CONTENT: Fitas de Borda ─── */}
+        {pieceFormTab === 'fita' && (
+          <div className="space-y-4 animate-in fade-in">
+            {/* Checkboxes de Fita de Borda em Grid Compacto */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {[
+                { key: 'top', label: 'C1 (Topo)', icon: '⬆️' },
+                { key: 'bottom', label: 'C2 (Base)', icon: '⬇️' },
+                { key: 'left', label: 'L1 (Esq)', icon: '⬅️' },
+                { key: 'right', label: 'L2 (Dir)', icon: '➡️' },
+              ].map(side => {
+                const isActive = Boolean((formEdgeBanding as any)?.[side.key]);
+                return (
+                  <label
+                    key={side.key}
+                    className={`flex items-center gap-2 text-xs cursor-pointer px-3 py-2.5 rounded-xl border transition-all ${
+                      isActive
+                        ? 'bg-amber-500/15 border-amber-500/50 text-amber-300 shadow-sm'
+                        : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-gray-200'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isActive}
+                      onChange={e => setFormEdgeBanding({
+                        ...formEdgeBanding,
+                        [side.key]: e.target.checked
+                      })}
+                      className="rounded text-amber-500 focus:ring-amber-400 w-4 h-4"
+                    />
+                    <span className="font-bold">{side.icon} {side.label}</span>
+                  </label>
+                );
+              })}
+            </div>
+
+            {/* Opções Avançadas */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <label className="flex items-center gap-2 text-xs text-amber-300 cursor-pointer bg-amber-500/10 border border-amber-500/30 px-3 py-2 rounded-xl hover:bg-amber-500/20 transition-all font-bold">
+                <input
+                  type="checkbox"
+                  checked={formRotate}
+                  onChange={e => setFormRotate(e.target.checked)}
+                  className="rounded text-amber-500 focus:ring-amber-400 w-4 h-4"
+                />
+                🔄 Girar Peça (90°)
+              </label>
+
+              <button
+                type="button"
+                onClick={handleSwapFormDimensions}
+                className="flex items-center gap-1.5 text-xs text-amber-400 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 px-3 py-2 rounded-xl transition-all font-bold"
+                title="Inverter Comprimento e Largura (Girar 90° agora)"
+              >
+                <RefreshCw className="w-3.5 h-3.5" /> Inverter Medidas (90°)
+              </button>
+            </div>
+
+            {/* Botão Adicionar/Atualizar Peça */}
+            <div className="flex items-center justify-between gap-3 pt-2 border-t border-white/5">
+              <button
+                type="button"
+                onClick={() => setPieceFormTab('mdf')}
+                className="text-[11px] text-gray-400 hover:text-white font-bold flex items-center gap-1 transition-colors"
+              >
+                ← Voltar pra Descrição
+              </button>
+              <button
+                onClick={handleSavePiece}
+                className="bg-amber-500 hover:bg-amber-400 text-black font-black px-5 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-lg shadow-amber-500/20 shrink-0 hover:scale-[1.02] active:scale-95"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                <span>{editingPieceId ? 'Atualizar Peça' : 'Adicionar ao Plano'}</span>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ─── VISUALIZADOR 2D INTERATIVO DAS CHAPAS DE CORTE ───────────────── */}

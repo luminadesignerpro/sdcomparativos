@@ -2951,48 +2951,48 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
       {activeTab === 'comparison' && (
         <div className="space-y-4 sm:space-y-6">
 
-          {/* Stats Header - High Tech Widgets */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="relative overflow-hidden bg-slate-900/80 border border-emerald-500/20 hover:border-emerald-500/40 p-5 rounded-3xl shadow-xl transition-all duration-300 hover:translate-y-[-2px] flex items-center gap-4 group">
+          {/* Stats Header - High Tech Widgets (Padronizado 3x1 no Mobile e Desktop) */}
+          <div className="grid grid-cols-3 gap-2 sm:gap-4">
+            <div className="relative overflow-hidden bg-slate-900/80 border border-emerald-500/20 hover:border-emerald-500/40 p-2.5 sm:p-5 rounded-xl sm:rounded-3xl shadow-lg sm:shadow-xl transition-all duration-300 flex items-center gap-2 sm:gap-4 group">
               <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/15 transition-colors pointer-events-none" />
-              <div className="w-13 h-13 p-3 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0 shadow-inner">
-                <ShoppingBag className="w-6 h-6" />
+              <div className="w-8 h-8 sm:w-13 sm:h-13 p-1.5 sm:p-3 rounded-lg sm:rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0 shadow-inner">
+                <ShoppingBag className="w-4 h-4 sm:w-6 sm:h-6" />
               </div>
-              <div>
-                <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Produtos Cotados</p>
-                <div className="flex items-baseline gap-2">
-                  <p className="text-3xl font-black text-white mt-0.5 tracking-tight">{totalProducts}</p>
-                  <span className="text-[11px] text-slate-500 font-medium">itens ativos</span>
+              <div className="min-w-0">
+                <p className="text-slate-400 text-[9px] sm:text-xs font-bold uppercase tracking-wider truncate">Produtos</p>
+                <div className="flex items-baseline gap-1 sm:gap-2">
+                  <p className="text-sm sm:text-3xl font-black text-white mt-0.5 tracking-tight">{totalProducts}</p>
+                  <span className="text-[9px] sm:text-[11px] text-slate-500 font-medium hidden sm:inline">itens ativos</span>
                 </div>
               </div>
             </div>
 
-            <div className="relative overflow-hidden bg-slate-900/80 border border-amber-500/20 hover:border-amber-500/40 p-5 rounded-3xl shadow-xl transition-all duration-300 hover:translate-y-[-2px] flex items-center gap-4 group">
+            <div className="relative overflow-hidden bg-slate-900/80 border border-amber-500/20 hover:border-amber-500/40 p-2.5 sm:p-5 rounded-xl sm:rounded-3xl shadow-lg sm:shadow-xl transition-all duration-300 flex items-center gap-2 sm:gap-4 group">
               <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/10 rounded-full blur-2xl group-hover:bg-amber-500/15 transition-colors pointer-events-none" />
-              <div className="w-13 h-13 p-3 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0 shadow-inner">
-                <TrendingDown className="w-6 h-6" />
+              <div className="w-8 h-8 sm:w-13 sm:h-13 p-1.5 sm:p-3 rounded-lg sm:rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0 shadow-inner">
+                <TrendingDown className="w-4 h-4 sm:w-6 sm:h-6" />
               </div>
-              <div>
-                <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Economia Potencial Total</p>
-                <p className="text-3xl font-black bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-400 bg-clip-text text-transparent mt-0.5 tracking-tight">
+              <div className="min-w-0">
+                <p className="text-slate-400 text-[9px] sm:text-xs font-bold uppercase tracking-wider truncate">Economia</p>
+                <p className="text-xs sm:text-3xl font-black bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-400 bg-clip-text text-transparent mt-0.5 tracking-tight truncate">
                   R$ {totalSavingsPotential.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
               </div>
             </div>
 
-            <div className="relative overflow-hidden bg-slate-900/80 border border-blue-500/20 hover:border-blue-500/40 p-5 rounded-3xl shadow-xl transition-all duration-300 hover:translate-y-[-2px] flex items-center gap-4 group">
+            <div className="relative overflow-hidden bg-slate-900/80 border border-blue-500/20 hover:border-blue-500/40 p-2.5 sm:p-5 rounded-xl sm:rounded-3xl shadow-lg sm:shadow-xl transition-all duration-300 flex items-center gap-2 sm:gap-4 group">
               <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-blue-500/15 transition-colors pointer-events-none" />
-              <div className="w-13 h-13 p-3 rounded-2xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0 shadow-inner">
-                <Award className="w-6 h-6" />
+              <div className="w-8 h-8 sm:w-13 sm:h-13 p-1.5 sm:p-3 rounded-lg sm:rounded-2xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0 shadow-inner">
+                <Award className="w-4 h-4 sm:w-6 sm:h-6" />
               </div>
               <div className="min-w-0">
-                <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Fornecedor Mais Competitivo</p>
-                <div className="flex items-center gap-2 flex-wrap mt-0.5">
-                  <span className="text-xl font-black text-amber-300 tracking-tight truncate max-w-[220px]">
+                <p className="text-slate-400 text-[9px] sm:text-xs font-bold uppercase tracking-wider truncate">Mais Barato</p>
+                <div className="flex items-center gap-1 sm:gap-2 flex-wrap mt-0.5">
+                  <span className="text-xs sm:text-xl font-black text-amber-300 tracking-tight truncate max-w-full">
                     {topSupplierName || 'Nenhum'}
                   </span>
                   {topSupplierWins > 0 && (
-                    <span className="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase bg-amber-500/20 text-amber-300 border border-amber-500/30 shrink-0">
+                    <span className="px-1.5 py-0.5 rounded-md text-[8px] sm:text-[10px] font-black uppercase bg-amber-500/20 text-amber-300 border border-amber-500/30 shrink-0 hidden sm:inline">
                       {topSupplierWins}x mais barato
                     </span>
                   )}
