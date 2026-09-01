@@ -2490,92 +2490,111 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
             {/* SELETOR DE PASTAS / CLIENTES */}
             {(() => {
               const currentFolder = clientFolders.find(f => f.id === selectedClientFolderId);
-              const folderLabel = currentFolder ? currentFolder.name : 'Todas as Pastas';
+              const folderLabel = currentFolder ? currentFolder.name : `Pastas (${clientFolders.length})`;
 
               return (
                 <div className="relative shrink-0">
                   <div className={`flex items-center rounded-xl border transition-all shadow-sm ${
                     activeTab === 'material_list'
-                      ? 'bg-amber-500/20 border-amber-500 text-amber-300 ring-1 ring-amber-500/40'
+                      ? 'bg-amber-500/20 border-amber-500 text-amber-300 ring-1 ring-amber-500/40 shadow-amber-500/10'
                       : 'bg-white/5 border-white/10 text-gray-300 hover:text-white hover:border-amber-500/40'
                   }`}>
                     <button
                       onClick={() => {
-                        setActiveTab('material_list');
-                        setShowFolderDropdown(false);
-                      }}
-                      className="pl-3 pr-1.5 py-1.5 font-bold text-xs flex items-center gap-1.5 cursor-pointer hover:text-amber-300 transition-colors"
-                      title="Gerenciar Pastas de Clientes"
-                    >
-                      <Folder className="w-3.5 h-3.5 text-amber-400" />
-                      <span className="font-black">Pastas</span>
-                      {currentFolder && <span className="text-amber-300/70 text-[10px] max-w-[80px] truncate">({currentFolder.name})</span>}
-                    </button>
-
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
                         setShowFolderDropdown(prev => !prev);
                       }}
-                      className="pr-2 pl-1 py-1.5 text-amber-400 hover:text-amber-300 transition-colors"
-                      title="Ver todas as pastas"
+                      className="pl-3 pr-2 py-1.5 font-black text-xs flex items-center gap-2 cursor-pointer hover:text-amber-300 transition-colors"
+                      title="Clique para ver e abrir as pastas dos clientes"
                     >
-                      <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${showFolderDropdown ? 'rotate-180' : ''}`} />
+                      <Folder className="w-4 h-4 text-amber-400 shrink-0" />
+                      <span className="font-extrabold text-white text-xs max-w-[150px] sm:max-w-[220px] truncate">
+                        {currentFolder ? `📁 ${currentFolder.name}` : `Pastas (${clientFolders.length})`}
+                      </span>
+                      <ChevronDown className={`w-3.5 h-3.5 text-amber-400 transition-transform duration-200 ${showFolderDropdown ? 'rotate-180' : ''}`} />
                     </button>
                   </div>
 
-                  {/* Dropdown de Pastas */}
+                  {/* Dropdown de Pastas de Clientes */}
                   {showFolderDropdown && (
-                    <div className="absolute top-full left-0 mt-1.5 w-64 bg-[#14171e] border border-amber-500/30 rounded-2xl p-1.5 shadow-2xl z-50 animate-in fade-in zoom-in-95 space-y-1">
-                      <button
-                        onClick={() => {
-                          setSelectedClientFolderId('all');
-                          setActiveTab('material_list');
-                          setShowFolderDropdown(false);
-                        }}
-                        className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-between transition-all ${
-                          selectedClientFolderId === 'all'
-                            ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                            : 'text-gray-300 hover:bg-white/5 hover:text-white'
-                        }`}
-                      >
-                        <span>📂 Todas as Pastas ({clientFolders.length})</span>
-                        {selectedClientFolderId === 'all' && <Check className="w-3.5 h-3.5 text-amber-400" />}
-                      </button>
+                    <div 
+                      className="absolute top-full left-0 mt-2 w-72 sm:w-80 bg-[#12141a] border-2 border-amber-500/40 rounded-2xl p-2 shadow-2xl z-50 animate-in fade-in zoom-in-95 space-y-1.5 backdrop-blur-xl"
+                      style={{ boxShadow: '0 20px 40px -10px rgba(0,0,0,0.8), 0 0 20px rgba(245,158,11,0.2)' }}
+                    >
+                      <div className="px-2 py-1 text-[11px] font-black uppercase text-amber-400 tracking-wider flex items-center justify-between border-b border-white/10 pb-1.5">
+                        <span>📁 Pastas de Clientes</span>
+                        <span className="text-[10px] text-gray-400 font-normal">{clientFolders.length} cadastradas</span>
+                      </div>
 
-                      {clientFolders.map(f => (
+                      <div className="max-h-64 overflow-y-auto space-y-1 pr-1 scrollbar-thin scrollbar-thumb-white/20">
+                        {clientFolders.map(f => {
+                          const fItems = materialList.filter(m => m.clientFolderId === f.id || (m.clientName && m.clientName.toLowerCase() === f.name.toLowerCase()));
+                          const isSelected = selectedClientFolderId === f.id;
+
+                          return (
+                            <button
+                              key={f.id}
+                              onClick={() => {
+                                setSelectedClientFolderId(f.id);
+                                setActiveTab('material_list');
+                                setShowFolderDropdown(false);
+                              }}
+                              className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition-all group ${
+                                isSelected
+                                  ? 'bg-amber-500/25 text-amber-300 border border-amber-500/40 shadow-sm'
+                                  : 'text-gray-200 hover:bg-white/10 hover:text-white border border-transparent'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <Folder className={`w-4 h-4 shrink-0 ${isSelected ? 'text-amber-400' : 'text-gray-400 group-hover:text-amber-400'}`} />
+                                <div className="min-w-0">
+                                  <span className="block font-black text-white group-hover:text-amber-300 truncate text-xs">
+                                    {f.name}
+                                  </span>
+                                  <span className="block text-[10px] text-gray-400 font-normal">
+                                    {fItems.length} itens • {f.status || 'Pronto'}
+                                  </span>
+                                </div>
+                              </div>
+                              {isSelected ? (
+                                <span className="bg-amber-500 text-black text-[9px] font-black px-1.5 py-0.5 rounded uppercase shrink-0">Ativa</span>
+                              ) : (
+                                <span className="text-[11px] text-amber-400 opacity-0 group-hover:opacity-100 transition-opacity font-bold">Abrir ➔</span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <div className="border-t border-white/10 my-1 pt-1 space-y-1">
                         <button
-                          key={f.id}
                           onClick={() => {
-                            setSelectedClientFolderId(f.id);
+                            setSelectedClientFolderId('all');
                             setActiveTab('material_list');
                             setShowFolderDropdown(false);
                           }}
                           className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-between transition-all ${
-                            selectedClientFolderId === f.id
-                              ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                              : 'text-gray-300 hover:bg-white/5 hover:text-white'
+                            selectedClientFolderId === 'all' && activeTab === 'material_list'
+                              ? 'bg-white/10 text-white'
+                              : 'text-gray-400 hover:bg-white/5 hover:text-white'
                           }`}
                         >
-                          <span className="truncate">📁 {f.name}</span>
-                          {selectedClientFolderId === f.id && <Check className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
+                          <span>📂 Ver Todas as Pastas (Galeria)</span>
+                          {selectedClientFolderId === 'all' && activeTab === 'material_list' && <Check className="w-3.5 h-3.5 text-amber-400" />}
                         </button>
-                      ))}
 
-                      <div className="border-t border-white/10 my-1"></div>
-
-                      <button
-                        onClick={() => {
-                          setActiveTab('material_list');
-                          setEditingClientFolder(null);
-                          setClientFolderForm({ name: '', phone: '', notes: '', status: 'Pronto para Comprar' });
-                          setShowClientFolderModal(true);
-                          setShowFolderDropdown(false);
-                        }}
-                        className="w-full text-left px-3 py-2 rounded-xl text-xs font-black text-emerald-400 hover:bg-emerald-500/10 flex items-center gap-1.5 transition-all"
-                      >
-                        <Plus className="w-3.5 h-3.5" /> + Nova Pasta de Cliente
-                      </button>
+                        <button
+                          onClick={() => {
+                            setActiveTab('material_list');
+                            setEditingClientFolder(null);
+                            setClientFolderForm({ name: '', phone: '', notes: '', status: 'Pronto para Comprar' });
+                            setShowClientFolderModal(true);
+                            setShowFolderDropdown(false);
+                          }}
+                          className="w-full text-left px-3 py-2 rounded-xl text-xs font-black text-emerald-400 hover:bg-emerald-500/15 flex items-center gap-1.5 transition-all border border-emerald-500/30"
+                        >
+                          <Plus className="w-4 h-4 text-emerald-400" /> + Nova Pasta de Cliente
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -3989,21 +4008,21 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
                         className="group cursor-pointer bg-gradient-to-b from-[#16181e] to-[#121418] hover:from-[#1c2028] hover:to-[#161920] border border-amber-500/20 hover:border-amber-500/60 p-4 rounded-2xl transition-all shadow-lg flex flex-col justify-between space-y-3 hover:scale-[1.01]"
                       >
                         <div className="flex justify-between items-start gap-2">
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0 group-hover:scale-105 transition-transform">
-                              <Folder className="w-5 h-5 text-amber-400" />
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <div className="w-11 h-11 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0 group-hover:scale-110 transition-transform shadow-md">
+                              <Folder className="w-6 h-6 text-amber-400" />
                             </div>
-                            <div className="min-w-0">
-                              <h4 className="text-sm font-black text-white group-hover:text-amber-300 transition-colors truncate">
+                            <div className="min-w-0 flex-1">
+                              <h4 className="text-base font-black text-white group-hover:text-amber-300 transition-colors break-words leading-tight">
                                 {f.name}
                               </h4>
-                              <p className="text-[10px] text-gray-400 truncate">
-                                {f.phone ? `📞 ${f.phone}` : `Criado: ${new Date(f.createdAt).toLocaleDateString('pt-BR')}`}
+                              <p className="text-[11px] text-gray-400 mt-0.5">
+                                {f.phone ? `📞 ${f.phone}` : `Criado em: ${new Date(f.createdAt).toLocaleDateString('pt-BR')}`}
                               </p>
                             </div>
                           </div>
 
-                          <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full shrink-0 border ${
+                          <span className={`text-[10px] font-black px-2.5 py-1 rounded-lg shrink-0 border uppercase tracking-wider ${
                             f.status === 'Comprado' 
                               ? 'bg-blue-500/20 text-blue-300 border-blue-500/30' 
                               : f.status === 'Em Cotação'
@@ -4014,28 +4033,28 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
                           </span>
                         </div>
 
-                        <div className="flex justify-between items-center text-xs pt-2 border-t border-white/5">
-                          <span className="text-[11px] text-gray-400">
-                            <b className="text-white font-bold">{fItems.length}</b> itens • <span className="text-purple-300">{fSuppliers} forn.</span>
+                        <div className="flex justify-between items-center text-xs pt-2.5 border-t border-white/10">
+                          <span className="text-xs text-gray-300">
+                            <b className="text-white font-black">{fItems.length}</b> itens • <span className="text-purple-300 font-bold">{fSuppliers} forn.</span>
                           </span>
-                          <span className="text-emerald-400 font-black text-xs">
+                          <span className="text-emerald-400 font-black text-sm">
                             R$ {fTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </span>
                         </div>
 
-                        <div className="flex gap-1.5 pt-1" onClick={e => e.stopPropagation()}>
+                        <div className="flex gap-2 pt-1" onClick={e => e.stopPropagation()}>
                           <button
                             onClick={() => setSelectedClientFolderId(f.id)}
-                            className="flex-1 bg-amber-500/15 hover:bg-amber-500 text-amber-300 hover:text-black font-bold py-1.5 rounded-xl text-xs flex items-center justify-center gap-1 transition-all"
+                            className="flex-1 bg-amber-500 hover:bg-amber-400 text-black font-black py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-95 cursor-pointer"
                           >
-                            Abrir 📂
+                            <Folder className="w-3.5 h-3.5" /> Abrir Pasta
                           </button>
                           <button
                             onClick={() => {
                               setSelectedClientFolderId(f.id);
                               setTimeout(() => handlePrintMaterialList(), 50);
                             }}
-                            className="bg-[#1a1d24] hover:bg-[#252a35] text-white p-1.5 rounded-xl text-xs flex items-center justify-center transition-all border border-white/10"
+                            className="bg-[#1a1d24] hover:bg-[#252a35] text-white px-2.5 py-2 rounded-xl text-xs flex items-center justify-center transition-all border border-white/10"
                             title="Imprimir pedido deste cliente"
                           >
                             <Printer className="w-3.5 h-3.5 text-emerald-400" />
@@ -4046,7 +4065,7 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
                               setClientFolderForm({ name: f.name, phone: f.phone || '', notes: f.notes || '', status: f.status });
                               setShowClientFolderModal(true);
                             }}
-                            className="bg-white/5 hover:bg-white/10 text-gray-400 hover:text-amber-300 p-1.5 rounded-xl text-xs flex items-center justify-center transition-all border border-white/10"
+                            className="bg-white/5 hover:bg-white/10 text-gray-400 hover:text-amber-300 px-2.5 py-2 rounded-xl text-xs flex items-center justify-center transition-all border border-white/10"
                             title="Editar pasta do cliente"
                           >
                             <Pencil className="w-3.5 h-3.5" />
