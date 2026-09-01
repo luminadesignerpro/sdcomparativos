@@ -1771,7 +1771,7 @@ const App: React.FC = () => {
 
           {/* Footer */}
           <div className="absolute bottom-6 left-6 pointer-events-none">
-            <p className="text-gray-600 text-xs">SD Móveis © 2024</p>
+            <p className="text-gray-600 text-xs">SD comparativo © 2026</p>
           </div>
         </div>
       )}
