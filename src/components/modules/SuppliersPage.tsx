@@ -2467,7 +2467,7 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
 
                   {/* Dropdown de Pastas */}
                   {showFolderDropdown && (
-                    <div className="absolute top-full left-0 mt-1.5 w-60 bg-[#14171e] border border-amber-500/30 rounded-2xl p-1.5 shadow-2xl z-50 animate-in fade-in zoom-in-95 space-y-1">
+                    <div className="absolute top-full left-0 mt-1.5 w-64 bg-[#14171e] border border-amber-500/30 rounded-2xl p-1.5 shadow-2xl z-50 animate-in fade-in zoom-in-95 space-y-1">
                       <button
                         onClick={() => {
                           setSelectedClientFolderId('all');
@@ -2480,7 +2480,7 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
                             : 'text-gray-300 hover:bg-white/5 hover:text-white'
                         }`}
                       >
-                        <span>📂 Todas as Pastas</span>
+                        <span>📂 Todas as Pastas ({clientFolders.length})</span>
                         {selectedClientFolderId === 'all' && <Check className="w-3.5 h-3.5 text-amber-400" />}
                       </button>
 
@@ -2515,13 +2515,28 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
                         }}
                         className="w-full text-left px-3 py-2 rounded-xl text-xs font-black text-emerald-400 hover:bg-emerald-500/10 flex items-center gap-1.5 transition-all"
                       >
-                        <Plus className="w-3.5 h-3.5" /> + Nova Pasta
+                        <Plus className="w-3.5 h-3.5" /> + Nova Pasta de Cliente
                       </button>
                     </div>
                   )}
                 </div>
               );
             })()}
+
+            {/* BOTÃO RÁPIDO + NOVA PASTA NA NAVBAR */}
+            <button
+              onClick={() => {
+                setActiveTab('material_list');
+                setEditingClientFolder(null);
+                setClientFolderForm({ name: '', phone: '', notes: '', status: 'Pronto para Comprar' });
+                setShowClientFolderModal(true);
+              }}
+              className="bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/40 px-2.5 py-1.5 rounded-xl text-xs font-black flex items-center gap-1 transition-all shrink-0 shadow-sm"
+              title="Criar nova pasta de cliente"
+            >
+              <FolderPlus className="w-3.5 h-3.5 text-emerald-400" />
+              <span>+ Pasta</span>
+            </button>
 
             {/* PLANO DE CORTE */}
             <button
@@ -3301,6 +3316,26 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
                 <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto flex-wrap">
                   <button
                     onClick={() => {
+                      setEditingClientFolder(null);
+                      setClientFolderForm({ name: '', phone: '', notes: '', status: 'Pronto para Comprar' });
+                      setShowClientFolderModal(true);
+                    }}
+                    className="bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all shadow-sm"
+                    title="Criar nova pasta de cliente"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> + Nova Pasta
+                  </button>
+
+                  <button
+                    onClick={() => setSelectedClientFolderId('all')}
+                    className="bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white border border-white/10 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all"
+                    title="Voltar para a lista de todas as pastas"
+                  >
+                    <Folder className="w-3.5 h-3.5 text-amber-400" /> Todas as Pastas
+                  </button>
+
+                  <button
+                    onClick={() => {
                       setEditingClientFolder(activeFolder);
                       setClientFolderForm({
                         name: activeFolder.name,
@@ -3347,23 +3382,32 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
                 </div>
               </div>
 
-              {/* GRID DE MÉTRICAS DO PEDIDO */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="bg-[#151922] border border-white/5 p-3 rounded-2xl">
-                  <span className="text-[10px] text-gray-400 uppercase font-bold block mb-0.5">Total de Itens</span>
-                  <span className="text-base font-black text-white">{displayedList.length} produtos</span>
+              {/* GRID DE MÉTRICAS DO PEDIDO (PADRONIZADO 3 EM LINHA NO DESKTOP / COMPACTO NO MOBILE) */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="bg-[#151922] border border-white/5 p-3 rounded-2xl flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] text-gray-400 uppercase font-bold block mb-0.5">Total de Itens</span>
+                    <span className="text-base font-black text-white">{displayedList.length} produtos</span>
+                  </div>
+                  <ShoppingCart className="w-5 h-5 text-amber-400/60" />
                 </div>
 
-                <div className="bg-[#151922] border border-white/5 p-3 rounded-2xl">
-                  <span className="text-[10px] text-gray-400 uppercase font-bold block mb-0.5">Fornecedores</span>
-                  <span className="text-base font-black text-purple-300">{folderSuppliersCount} cotações</span>
+                <div className="bg-[#151922] border border-white/5 p-3 rounded-2xl flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] text-gray-400 uppercase font-bold block mb-0.5">Fornecedores</span>
+                    <span className="text-base font-black text-purple-300">{folderSuppliersCount} cotações</span>
+                  </div>
+                  <Building className="w-5 h-5 text-purple-400/60" />
                 </div>
 
-                <div className="bg-[#151922] border border-emerald-500/20 p-3 rounded-2xl sm:col-span-2">
-                  <span className="text-[10px] text-emerald-400 uppercase font-bold block mb-0.5">Valor Total do Pedido</span>
-                  <span className="text-lg font-black text-emerald-400">
-                    R$ {folderTotalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </span>
+                <div className="bg-[#151922] border border-emerald-500/30 p-3 rounded-2xl flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] text-emerald-400 uppercase font-bold block mb-0.5">Valor Total do Pedido</span>
+                    <span className="text-base sm:text-lg font-black text-emerald-400">
+                      R$ {folderTotalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <DollarSign className="w-5 h-5 text-emerald-400/60" />
                 </div>
               </div>
 
@@ -3824,24 +3868,39 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
             /* ─── PAINEL GERAL DE CLIENTES QUANDO NENHUM ESTÁ ABERTO ──── */
             <div className="space-y-4">
               
-              {/* Barra de Busca & Métricas Globais */}
-              <div className="bg-[#14161b] border border-white/10 p-4 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-3 shadow-md">
-                <div className="relative w-full md:w-80">
-                  <Search className="absolute left-3.5 top-2.5 w-4 h-4 text-gray-400" />
-                  <input
-                    value={clientFolderSearch}
-                    onChange={e => setClientFolderSearch(e.target.value)}
-                    placeholder="🔍 Buscar cliente por nome ou telefone..."
-                    className="w-full pl-10 pr-4 py-2 rounded-xl border border-white/10 bg-[#1a1d24] text-white text-xs placeholder-gray-500 focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                  />
+              {/* Barra de Busca & Métricas Globais + Botão Nova Pasta */}
+              <div className="bg-[#14161b] border border-white/10 p-3.5 sm:p-4 rounded-2xl flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 shadow-md">
+                <div className="flex items-center gap-2 flex-1">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3.5 top-2.5 w-4 h-4 text-gray-400" />
+                    <input
+                      value={clientFolderSearch}
+                      onChange={e => setClientFolderSearch(e.target.value)}
+                      placeholder="🔍 Buscar cliente por nome ou telefone..."
+                      className="w-full pl-10 pr-4 py-2 rounded-xl border border-white/10 bg-[#1a1d24] text-white text-xs placeholder-gray-500 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setEditingClientFolder(null);
+                      setClientFolderForm({ name: '', phone: '', notes: '', status: 'Pronto para Comprar' });
+                      setShowClientFolderModal(true);
+                    }}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 shrink-0 shadow-md transition-all hover:scale-[1.02] active:scale-95"
+                    title="Criar nova pasta de cliente"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>+ Nova Pasta</span>
+                  </button>
                 </div>
 
-                <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap justify-end">
+                <div className="flex items-center gap-2 sm:gap-3 text-[11px] sm:text-xs text-gray-400 flex-wrap justify-between md:justify-end border-t md:border-t-0 pt-2 md:pt-0 border-white/5">
                   <span>Pastas: <b className="text-white">{clientFolders.length}</b></span>
                   <span>•</span>
                   <span>Total Itens: <b className="text-white">{materialList.length}</b></span>
                   <span>•</span>
-                  <span>Total Compras: <b className="text-emerald-400">R$ {materialList.reduce((acc, curr) => acc + curr.total, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</b></span>
+                  <span>Total Compras: <b className="text-emerald-400 font-bold">R$ {materialList.reduce((acc, curr) => acc + curr.total, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</b></span>
                 </div>
               </div>
 
