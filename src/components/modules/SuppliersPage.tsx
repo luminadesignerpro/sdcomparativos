@@ -4001,75 +4001,67 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
                 </div>
               </div>
 
-              {/* Grid de Cards de Pastas de Clientes */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3.5">
+              {/* Lista estilo Explorador de Arquivos */}
+              <div className="bg-[#0f1115] border border-white/10 rounded-2xl overflow-hidden shadow-xl">
                 {clientFolders
                   .filter(f => {
                     const q = clientFolderSearch.toLowerCase().trim();
                     return !q || f.name.toLowerCase().includes(q) || (f.phone && f.phone.includes(q));
                   })
-                  .map(f => {
+                  .map((f, index, arr) => {
                     const fItems = materialList.filter(m => m.clientFolderId === f.id || (m.clientName && m.clientName.toLowerCase() === f.name.toLowerCase()));
                     const fTotal = fItems.reduce((acc, curr) => acc + curr.total, 0);
-                    const fSuppliers = new Set(fItems.map(m => m.selectedSupplierName)).size;
+                    const isLast = index === arr.length - 1;
 
                     return (
                       <div
                         key={f.id}
                         onClick={() => setSelectedClientFolderId(f.id)}
-                        className="group cursor-pointer bg-gradient-to-b from-[#16181e] to-[#121418] hover:from-[#1c2028] hover:to-[#161920] border border-amber-500/20 hover:border-amber-500/60 p-4 rounded-2xl transition-all shadow-lg flex flex-col justify-between space-y-3 hover:scale-[1.01]"
+                        className={`group flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-amber-500/10 transition-all ${!isLast ? 'border-b border-white/[0.06]' : ''}`}
                       >
-                        <div className="flex justify-between items-start gap-2">
-                          <div className="flex items-center gap-3 min-w-0 flex-1">
-                            <div className="w-11 h-11 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0 group-hover:scale-110 transition-transform shadow-md">
-                              <Folder className="w-6 h-6 text-amber-400" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <h4 className="text-base font-black text-white group-hover:text-amber-300 transition-colors break-words leading-tight">
-                                {f.name}
-                              </h4>
-                              <p className="text-[11px] text-gray-400 mt-0.5">
-                                {f.phone ? `📞 ${f.phone}` : `Criado em: ${new Date(f.createdAt).toLocaleDateString('pt-BR')}`}
-                              </p>
-                            </div>
-                          </div>
+                        {/* Ícone da pasta */}
+                        <Folder className="w-5 h-5 text-amber-400 shrink-0 group-hover:text-amber-300 transition-colors" />
 
-                          <span className={`text-[10px] font-black px-2.5 py-1 rounded-lg shrink-0 border uppercase tracking-wider ${
-                            f.status === 'Comprado' 
-                              ? 'bg-blue-500/20 text-blue-300 border-blue-500/30' 
-                              : f.status === 'Em Cotação'
-                              ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
-                              : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-                          }`}>
-                            {f.status || 'Pronto'}
+                        {/* Nome e info */}
+                        <div className="flex-1 min-w-0">
+                          <span className="font-black text-sm text-white group-hover:text-amber-300 transition-colors truncate block">
+                            {f.name}
+                          </span>
+                          <span className="text-[10px] text-gray-500">
+                            {fItems.length} {fItems.length === 1 ? 'item' : 'itens'}
+                            {f.phone ? ` • 📞 ${f.phone}` : ''}
                           </span>
                         </div>
 
-                        <div className="flex justify-between items-center text-xs pt-2.5 border-t border-white/10">
-                          <span className="text-xs text-gray-300">
-                            <b className="text-white font-black">{fItems.length}</b> itens • <span className="text-purple-300 font-bold">{fSuppliers} forn.</span>
-                          </span>
-                          <span className="text-emerald-400 font-black text-sm">
-                            R$ {fTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </span>
-                        </div>
+                        {/* Status badge */}
+                        <span className={`text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-wide shrink-0 hidden sm:inline-block ${
+                          f.status === 'Comprado'
+                            ? 'bg-blue-500/20 text-blue-300'
+                            : f.status === 'Em Cotação'
+                            ? 'bg-amber-500/20 text-amber-300'
+                            : 'bg-emerald-500/20 text-emerald-300'
+                        }`}>
+                          {f.status || 'Pronto'}
+                        </span>
 
-                        <div className="flex gap-2 pt-1" onClick={e => e.stopPropagation()}>
+                        {/* Valor */}
+                        {fTotal > 0 && (
+                          <span className="text-emerald-400 font-black text-xs shrink-0 hidden md:inline">
+                            R$ {fTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </span>
+                        )}
+
+                        {/* Ações — aparecem no hover */}
+                        <div
+                          className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={e => e.stopPropagation()}
+                        >
                           <button
                             onClick={() => setSelectedClientFolderId(f.id)}
-                            className="flex-1 bg-amber-500 hover:bg-amber-400 text-black font-black py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-95 cursor-pointer"
+                            className="bg-amber-500 hover:bg-amber-400 text-black font-black px-3 py-1 rounded-lg text-[10px] flex items-center gap-1 transition-all"
+                            title="Abrir pasta"
                           >
-                            <Folder className="w-3.5 h-3.5" /> Abrir Pasta
-                          </button>
-                          <button
-                            onClick={() => {
-                              setSelectedClientFolderId(f.id);
-                              setTimeout(() => handlePrintMaterialList(), 50);
-                            }}
-                            className="bg-[#1a1d24] hover:bg-[#252a35] text-white px-2.5 py-2 rounded-xl text-xs flex items-center justify-center transition-all border border-white/10"
-                            title="Imprimir pedido deste cliente"
-                          >
-                            <Printer className="w-3.5 h-3.5 text-emerald-400" />
+                            Abrir
                           </button>
                           <button
                             onClick={() => {
@@ -4077,8 +4069,8 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
                               setClientFolderForm({ name: f.name, phone: f.phone || '', notes: f.notes || '', status: f.status });
                               setShowClientFolderModal(true);
                             }}
-                            className="bg-white/5 hover:bg-white/10 text-gray-400 hover:text-amber-300 px-2.5 py-2 rounded-xl text-xs flex items-center justify-center transition-all border border-white/10"
-                            title="Editar pasta do cliente"
+                            className="w-7 h-7 bg-white/5 hover:bg-white/15 text-gray-400 hover:text-amber-300 rounded-lg flex items-center justify-center transition-all"
+                            title="Editar pasta"
                           >
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
@@ -4087,18 +4079,16 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
                     );
                   })}
 
-                {/* Card Criar Nova Pasta */}
+                {/* Linha de criar nova pasta */}
                 <div
                   onClick={() => {
                     setEditingClientFolder(null);
                     setClientFolderForm({ name: '', phone: '', notes: '', status: 'Pronto para Comprar' });
                     setShowClientFolderModal(true);
                   }}
-                  className="cursor-pointer bg-[#121418] hover:bg-[#181b22] border-2 border-dashed border-white/10 hover:border-amber-500/40 p-4 rounded-2xl transition-all flex flex-col items-center justify-center gap-2 min-h-[140px] text-gray-400 hover:text-amber-400 group"
+                  className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-emerald-500/10 transition-all border-t border-white/[0.06] text-gray-500 hover:text-emerald-400 group"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform">
-                    <FolderPlus className="w-5 h-5 text-amber-400" />
-                  </div>
+                  <FolderPlus className="w-5 h-5 shrink-0 text-emerald-500 group-hover:text-emerald-400 transition-colors" />
                   <span className="text-xs font-bold">+ Nova Pasta de Cliente</span>
                 </div>
               </div>
