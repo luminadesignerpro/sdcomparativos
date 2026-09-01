@@ -2496,15 +2496,16 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
                 <div className="relative shrink-0">
                   <div className={`flex items-center rounded-xl border transition-all shadow-sm ${
                     activeTab === 'material_list'
-                      ? 'bg-amber-500/20 border-amber-500 text-amber-300 ring-1 ring-amber-500/40 shadow-amber-500/10'
+                      ? 'bg-amber-500/20 border-amber-500 text-amber-300 ring-1 ring-amber-500/40 shadow-amber-500/10 font-black'
                       : 'bg-white/5 border-white/10 text-gray-300 hover:text-white hover:border-amber-500/40'
                   }`}>
                     <button
                       onClick={() => {
+                        setActiveTab('material_list');
                         setShowFolderDropdown(prev => !prev);
                       }}
-                      className="pl-3 pr-2 py-1.5 font-black text-xs flex items-center gap-2 cursor-pointer hover:text-amber-300 transition-colors"
-                      title="Clique para ver e abrir as pastas dos clientes"
+                      className="px-3.5 py-1.5 font-black text-xs flex items-center gap-2 cursor-pointer hover:text-amber-300 transition-colors"
+                      title="Abrir módulo de pastas e ver clientes"
                     >
                       <Folder className="w-4 h-4 text-amber-400 shrink-0" />
                       <span className="font-extrabold text-white text-xs max-w-[150px] sm:max-w-[220px] truncate">
@@ -2514,11 +2515,22 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
                     </button>
                   </div>
 
+                  {/* Backdrop ao abrir dropdown */}
+                  {showFolderDropdown && (
+                    <div 
+                      className="fixed inset-0 z-40 bg-black/30" 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowFolderDropdown(false);
+                      }} 
+                    />
+                  )}
+
                   {/* Dropdown de Pastas de Clientes */}
                   {showFolderDropdown && (
                     <div 
                       className="absolute top-full left-0 mt-2 w-72 sm:w-80 bg-[#12141a] border-2 border-amber-500/40 rounded-2xl p-2 shadow-2xl z-50 animate-in fade-in zoom-in-95 space-y-1.5 backdrop-blur-xl"
-                      style={{ boxShadow: '0 20px 40px -10px rgba(0,0,0,0.8), 0 0 20px rgba(245,158,11,0.2)' }}
+                      style={{ boxShadow: '0 20px 40px -10px rgba(0,0,0,0.9), 0 0 25px rgba(245,158,11,0.25)' }}
                     >
                       <div className="px-2 py-1 text-[11px] font-black uppercase text-amber-400 tracking-wider flex items-center justify-between border-b border-white/10 pb-1.5">
                         <span>📁 Pastas de Clientes</span>
@@ -2528,7 +2540,7 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
                       <div className="max-h-64 overflow-y-auto space-y-1 pr-1 scrollbar-thin scrollbar-thumb-white/20">
                         {clientFolders.map(f => {
                           const fItems = materialList.filter(m => m.clientFolderId === f.id || (m.clientName && m.clientName.toLowerCase() === f.name.toLowerCase()));
-                          const isSelected = selectedClientFolderId === f.id;
+                          const isSelected = selectedClientFolderId === f.id && activeTab === 'material_list';
 
                           return (
                             <button
@@ -2538,7 +2550,7 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
                                 setActiveTab('material_list');
                                 setShowFolderDropdown(false);
                               }}
-                              className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition-all group ${
+                              className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition-all group cursor-pointer ${
                                 isSelected
                                   ? 'bg-amber-500/25 text-amber-300 border border-amber-500/40 shadow-sm'
                                   : 'text-gray-200 hover:bg-white/10 hover:text-white border border-transparent'
@@ -2556,7 +2568,7 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
                                 </div>
                               </div>
                               {isSelected ? (
-                                <span className="bg-amber-500 text-black text-[9px] font-black px-1.5 py-0.5 rounded uppercase shrink-0">Ativa</span>
+                                <span className="bg-amber-500 text-black text-[9px] font-black px-1.5 py-0.5 rounded uppercase shrink-0">Aberta</span>
                               ) : (
                                 <span className="text-[11px] text-amber-400 opacity-0 group-hover:opacity-100 transition-opacity font-bold">Abrir ➔</span>
                               )}
