@@ -2505,10 +2505,11 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
                         setShowFolderDropdown(false);
                       }}
                       className="pl-3 pr-1.5 py-1.5 font-bold text-xs flex items-center gap-1.5 cursor-pointer hover:text-amber-300 transition-colors"
-                      title={`Abrir pasta ${folderLabel}`}
+                      title="Gerenciar Pastas de Clientes"
                     >
                       <Folder className="w-3.5 h-3.5 text-amber-400" />
-                      <span className="max-w-[120px] truncate">{folderLabel}</span>
+                      <span className="font-black">Pastas</span>
+                      {currentFolder && <span className="text-amber-300/70 text-[10px] max-w-[80px] truncate">({currentFolder.name})</span>}
                     </button>
 
                     <button
@@ -2581,20 +2582,7 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
               );
             })()}
 
-            {/* BOTÃO RÁPIDO + NOVA PASTA NA NAVBAR */}
-            <button
-              onClick={() => {
-                setActiveTab('material_list');
-                setEditingClientFolder(null);
-                setClientFolderForm({ name: '', phone: '', notes: '', status: 'Pronto para Comprar' });
-                setShowClientFolderModal(true);
-              }}
-              className="bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/40 px-2.5 py-1.5 rounded-xl text-xs font-black flex items-center gap-1 transition-all shrink-0 shadow-sm"
-              title="Criar nova pasta de cliente"
-            >
-              <FolderPlus className="w-3.5 h-3.5 text-emerald-400" />
-              <span>+ Pasta</span>
-            </button>
+
 
             {/* PLANO DE CORTE */}
             <button
