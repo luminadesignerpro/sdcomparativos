@@ -3360,12 +3360,12 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
 
       {/* ─── TAB 3: LISTA DE MATERIAIS DA COMPRA (COM PASTAS DE CLIENTES) ──── */}
       {activeTab === 'material_list' && (() => {
-        const activeFolder = clientFolders.find(f => f.id === selectedClientFolderId);
+        const activeFolder = clientFolders.find(f => f.id === selectedClientFolderId) || clientFolders[0];
         
         const displayedList = materialList.filter(item => {
-          if (selectedClientFolderId === 'all') return true;
-          if (item.clientFolderId === selectedClientFolderId) return true;
-          if (activeFolder && item.clientName && item.clientName.toLowerCase() === activeFolder.name.toLowerCase()) return true;
+          if (!activeFolder) return false;
+          if (item.clientFolderId === activeFolder.id) return true;
+          if (item.clientName && item.clientName.toLowerCase() === activeFolder.name.toLowerCase()) return true;
           return false;
         });
 
@@ -3375,727 +3375,402 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
         return (
         <div className="space-y-4">
 
-          {/* ─── CARD MASTER UNIFICADO: PROJETO / CLIENTE + MÉTRICAS + AÇÕES POR FORNECEDOR ─── */}
-          {activeFolder && (
-            <div className="bg-gradient-to-br from-[#121418] via-[#101216] to-[#121418] border border-amber-500/30 p-5 rounded-3xl shadow-2xl space-y-4">
-              
-              {/* LINHA SUPERIOR: TÍTULO DA PASTA/PROJETO + AÇÕES GERAIS */}
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-white/10">
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-2xl bg-amber-500/15 border border-amber-500/35 flex items-center justify-center text-amber-400 shrink-0 shadow-md">
-                    <Folder className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h2 className="text-xl font-black text-white tracking-wide">
-                        {activeFolder.name}
-                      </h2>
-                      <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-lg border ${
-                        activeFolder.status === 'Comprado'
-                          ? 'bg-blue-500/20 text-blue-300 border-blue-500/30'
-                          : activeFolder.status === 'Em Cotação'
-                          ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
-                          : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-                      }`}>
-                        {activeFolder.status || 'Pronto para Comprar'}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3 text-[11px] text-gray-400 mt-0.5">
-                      {activeFolder.phone && <span>📞 {activeFolder.phone}</span>}
-                      {activeFolder.createdAt && (
-                        <span>📅 Criado em {new Date(activeFolder.createdAt).toLocaleDateString('pt-BR')}</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
+          {/* ─── LAYOUT DOIS PAINÉIS: LISTA DE PASTAS + CONTEÚDO ─── */}
+          <div className="flex flex-col lg:flex-row gap-4">
 
-                {/* Botões de Ação da Pasta */}
-                <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto flex-wrap">
+            {/* ═══ PAINEL ESQUERDO: LISTA DE PASTAS (EXPLORADOR) ═══ */}
+            <div className="lg:w-64 xl:w-72 shrink-0">
+              <div className="bg-[#0f1115] border border-white/10 rounded-2xl overflow-hidden shadow-xl sticky top-4">
+                {/* Header da lista */}
+                <div className="px-3.5 py-2.5 border-b border-white/10 bg-[#12141a] flex items-center justify-between">
+                  <span className="text-[11px] font-black uppercase text-amber-400 tracking-wider flex items-center gap-1.5">
+                    <Folder className="w-3.5 h-3.5" /> Pastas ({clientFolders.length})
+                  </span>
                   <button
                     onClick={() => {
                       setEditingClientFolder(null);
                       setClientFolderForm({ name: '', phone: '', notes: '', status: 'Pronto para Comprar' });
                       setShowClientFolderModal(true);
                     }}
-                    className="bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all shadow-sm"
-                    title="Criar nova pasta de cliente"
+                    className="bg-emerald-500/15 hover:bg-emerald-500/30 text-emerald-400 w-6 h-6 rounded-lg flex items-center justify-center transition-all cursor-pointer"
+                    title="Nova pasta de cliente"
                   >
-                    <Plus className="w-3.5 h-3.5" /> + Nova Pasta
+                    <Plus className="w-3.5 h-3.5" />
                   </button>
+                </div>
 
-                  <button
-                    onClick={() => setSelectedClientFolderId('all')}
-                    className="bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white border border-white/10 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all"
-                    title="Voltar para a lista de todas as pastas"
-                  >
-                    <Folder className="w-3.5 h-3.5 text-amber-400" /> Todas as Pastas
-                  </button>
+                {/* Busca compacta */}
+                <div className="px-2.5 py-2 border-b border-white/[0.06]">
+                  <input
+                    value={clientFolderSearch}
+                    onChange={e => setClientFolderSearch(e.target.value)}
+                    placeholder="🔍 Buscar pasta..."
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-white/10 bg-[#1a1d24] text-white text-[11px] placeholder-gray-500 focus:ring-1 focus:ring-amber-500 focus:outline-none"
+                  />
+                </div>
 
-                  <button
+                {/* Lista de pastas */}
+                <div className="max-h-[65vh] overflow-y-auto">
+                  {clientFolders
+                    .filter(f => {
+                      const q = clientFolderSearch.toLowerCase().trim();
+                      return !q || f.name.toLowerCase().includes(q) || (f.phone && f.phone.includes(q));
+                    })
+                    .map(f => {
+                      const fItems = materialList.filter(m => m.clientFolderId === f.id || (m.clientName && m.clientName.toLowerCase() === f.name.toLowerCase()));
+                      const isActive = activeFolder && activeFolder.id === f.id;
+
+                      return (
+                        <div
+                          key={f.id}
+                          onClick={() => setSelectedClientFolderId(f.id)}
+                          className={`group flex items-center gap-2.5 px-3.5 py-2.5 cursor-pointer transition-all border-b border-white/[0.04] ${
+                            isActive
+                              ? 'bg-amber-500/15 border-l-2 border-l-amber-500'
+                              : 'hover:bg-white/[0.06] border-l-2 border-l-transparent'
+                          }`}
+                        >
+                          <Folder className={`w-4 h-4 shrink-0 transition-colors ${isActive ? 'text-amber-400' : 'text-gray-500 group-hover:text-amber-400'}`} />
+                          <div className="flex-1 min-w-0">
+                            <span className={`font-black text-xs block truncate transition-colors ${isActive ? 'text-amber-300 font-black' : 'text-white group-hover:text-amber-300'}`}>
+                              {f.name}
+                            </span>
+                            <span className="text-[9px] text-gray-400 block">
+                              {fItems.length} {fItems.length === 1 ? 'item' : 'itens'} {f.phone ? `• 📞 ${f.phone}` : ''}
+                            </span>
+                          </div>
+                          {isActive && (
+                            <div className="w-2 h-2 rounded-full bg-amber-400 shrink-0 shadow-sm shadow-amber-400" />
+                          )}
+                        </div>
+                      );
+                    })}
+
+                  {/* Criar nova pasta */}
+                  <div
                     onClick={() => {
-                      setEditingClientFolder(activeFolder);
-                      setClientFolderForm({
-                        name: activeFolder.name,
-                        phone: activeFolder.phone || '',
-                        notes: activeFolder.notes || '',
-                        status: activeFolder.status
-                      });
+                      setEditingClientFolder(null);
+                      setClientFolderForm({ name: '', phone: '', notes: '', status: 'Pronto para Comprar' });
                       setShowClientFolderModal(true);
                     }}
-                    className="bg-white/5 hover:bg-white/10 text-gray-300 hover:text-amber-300 border border-white/10 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all"
+                    className="flex items-center gap-2.5 px-3.5 py-2.5 cursor-pointer hover:bg-emerald-500/10 transition-all text-gray-400 hover:text-emerald-400 group border-l-2 border-l-transparent"
                   >
-                    <Pencil className="w-3.5 h-3.5 text-amber-400" /> Editar Dados
-                  </button>
-
-                  <button
-                    onClick={() => setExportModal({ isOpen: true, targetSupplierName: undefined })}
-                    className="bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white border border-white/10 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all"
-                    title="Imprimir pedido ou gerar PDF (Com ou Sem Valores)"
-                  >
-                    <Printer className="w-3.5 h-3.5 text-emerald-400" /> Imprimir / PDF
-                  </button>
-
-                  <button
-                    onClick={() => setExportModal({ isOpen: true, targetSupplierName: undefined })}
-                    className="bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500/40 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-md"
-                    title="Enviar pedido formatado pelo WhatsApp (Com ou Sem Valores)"
-                  >
-                    <MessageCircle className="w-3.5 h-3.5 text-white" /> Enviar WhatsApp (c/ PDF)
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      if (confirm(`Excluir a pasta "${activeFolder.name}"? Os itens continuarão salvos.`)) {
-                        setClientFolders(prev => prev.filter(f => f.id !== activeFolder.id));
-                        setSelectedClientFolderId('all');
-                        toast({ title: '🗑️ Pasta excluída' });
-                      }
-                    }}
-                    className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 p-1.5 rounded-xl text-xs transition-all"
-                    title="Excluir Pasta"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-
-              {/* GRID DE MÉTRICAS DO PEDIDO (PADRONIZADO 3 EM LINHA NO DESKTOP / COMPACTO NO MOBILE) */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="bg-[#151922] border border-white/5 p-3 rounded-2xl flex items-center justify-between">
-                  <div>
-                    <span className="text-[10px] text-gray-400 uppercase font-bold block mb-0.5">Total de Itens</span>
-                    <span className="text-base font-black text-white">{displayedList.length} produtos</span>
-                  </div>
-                  <ShoppingCart className="w-5 h-5 text-amber-400/60" />
-                </div>
-
-                <div className="bg-[#151922] border border-white/5 p-3 rounded-2xl flex items-center justify-between">
-                  <div>
-                    <span className="text-[10px] text-gray-400 uppercase font-bold block mb-0.5">Fornecedores</span>
-                    <span className="text-base font-black text-purple-300">{folderSuppliersCount} cotações</span>
-                  </div>
-                  <Building className="w-5 h-5 text-purple-400/60" />
-                </div>
-
-                <div className="bg-[#151922] border border-emerald-500/30 p-3 rounded-2xl flex items-center justify-between">
-                  <div>
-                    <span className="text-[10px] text-emerald-400 uppercase font-bold block mb-0.5">Valor Total do Pedido</span>
-                    <span className="text-base sm:text-lg font-black text-emerald-400">
-                      R$ {folderTotalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                  <DollarSign className="w-5 h-5 text-emerald-400/60" />
-                </div>
-              </div>
-
-              {/* AÇÕES RÁPIDAS POR FORNECEDOR INTEGRADA DIRETAMENTE */}
-              {(() => {
-                const folderSuppliers = Array.from(new Set(displayedList.map(it => it.selectedSupplierName))).filter(Boolean);
-                if (folderSuppliers.length === 0) return null;
-                return (
-                  <div className="space-y-2.5 pt-2 border-t border-white/10">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-black text-white flex items-center gap-1.5">
-                        <Send className="w-3.5 h-3.5 text-amber-400" />
-                        Ações Rápidas por Fornecedor (PDF &amp; WhatsApp):
-                      </span>
-                      <span className="text-[10px] text-gray-400">
-                        Gere o PDF oficial ou envie direto pelo WhatsApp para cada fornecedor
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {folderSuppliers.map(suppName => {
-                        const suppItems = displayedList.filter(it => it.selectedSupplierName === suppName);
-                        const suppTotal = suppItems.reduce((acc, curr) => acc + curr.total, 0);
-                        return (
-                          <div key={suppName} className="bg-[#151922] border border-amber-500/25 hover:border-amber-500/50 p-3 rounded-2xl flex flex-col justify-between gap-2.5 shadow-md transition-all">
-                            <div className="flex items-center justify-between gap-1.5">
-                              <span className="font-black text-xs text-white flex items-center gap-1.5 truncate">
-                                🏢 {suppName}
-                              </span>
-                              <span className="bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] px-2 py-0.5 rounded-lg font-black shrink-0">
-                                {suppItems.length} {suppItems.length === 1 ? 'item' : 'itens'} • R$ {suppTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                              </span>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-2 pt-1 border-t border-white/5">
-                              <button
-                                onClick={() => setExportModal({ isOpen: true, targetSupplierName: suppName })}
-                                className="bg-white/5 hover:bg-white/15 text-amber-300 hover:text-white border border-white/10 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
-                                title={`Opções de PDF e Impressão para ${suppName}`}
-                              >
-                                <Printer className="w-3.5 h-3.5 text-amber-400" />
-                                <span>PDF / Imprimir</span>
-                              </button>
-
-                              <button
-                                onClick={() => handleSendWhatsAppMaterialList(suppName, true)}
-                                className="bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1.5 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all shadow-md"
-                                title={`Enviar PDF de ${suppName} diretamente pelo WhatsApp`}
-                              >
-                                <MessageCircle className="w-3.5 h-3.5 text-white" />
-                                <span>WhatsApp PDF</span>
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {activeFolder.notes && (
-                <div className="bg-amber-500/5 border border-amber-500/20 px-3.5 py-2 rounded-xl text-xs text-amber-200/90 flex items-start gap-2">
-                  <span className="font-bold shrink-0">📝 Obs:</span>
-                  <span>{activeFolder.notes}</span>
-                </div>
-              )}
-
-            </div>
-          )}
-
-          {/* Form Modal: Add Item to Material List */}
-          {showAddMatForm && (
-            <div className="bg-[#111111] border border-blue-500/40 rounded-3xl p-6 shadow-2xl space-y-4 text-white max-w-2xl mx-auto">
-              
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-white/10 pb-3">
-                <h3 className="font-bold text-lg text-blue-400 flex items-center gap-2">
-                  <ShoppingCart className="w-5 h-5" /> Adicionar Produto à Lista de Compras
-                </h3>
-
-                <div className="flex bg-[#1a1a1a] p-1 rounded-xl border border-white/10">
-                  <button 
-                    onClick={() => setAddMatMode('select')}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                      addMatMode === 'select' 
-                        ? 'bg-blue-600 text-white shadow' 
-                        : 'text-gray-400 hover:text-white'
-                    }`}
-                  >
-                    Selecionar Existente
-                  </button>
-                  <button 
-                    onClick={() => setAddMatMode('new')}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                      addMatMode === 'new' 
-                        ? 'bg-emerald-600 text-white shadow' 
-                        : 'text-gray-400 hover:text-white'
-                    }`}
-                  >
-                    Cadastrar Novo
-                  </button>
-                </div>
-              </div>
-
-              {/* MODE 1: SELECT EXISTING PRODUCT FROM COMPARISONS */}
-              {addMatMode === 'select' && (
-                <div className="space-y-4">
-                  {activeComparisons.length === 0 ? (
-                    <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-amber-300 text-xs">
-                      Nenhum produto com cotação cadastrada nos fornecedores atuais. Cadastre um produto com cotação primeiro ou use "Cadastrar Novo" acima.
-                    </div>
-                  ) : (
-                    <>
-                      <div>
-                        <label className="text-xs text-blue-400 font-bold block mb-1">1. Escolha o Produto</label>
-                        <select 
-                          value={matForm.productId}
-                          onChange={e => handleSelectProductForMatList(e.target.value)}
-                          className="w-full p-3 rounded-xl border border-white/10 bg-[#1a1a1a] text-white focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm font-bold"
-                        >
-                          {activeComparisons.map(p => (
-                            <option key={p.id} value={p.id}>{p.productName} ({p.category})</option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="text-xs text-emerald-400 font-bold block mb-1">
-                          2. Fornecedor & Preço {matForm.isCheapest && '🏆 (Menor Preço Padrão)'}
-                        </label>
-                        {(() => {
-                          const selectedProd = comparisons.find(c => c.id === matForm.productId);
-                          if (!selectedProd || selectedProd.quotes.length === 0) {
-                            return <p className="text-xs text-red-400 p-2">Nenhuma cotação cadastrada neste produto ainda.</p>;
-                          }
-                          return (
-                            <select
-                              value={matForm.supplierName}
-                              onChange={e => handleSelectQuoteForMatList(e.target.value)}
-                              className="w-full p-3 rounded-xl border border-white/10 bg-[#1a1a1a] text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none text-sm font-bold"
-                            >
-                              {selectedProd.quotes.map((q, idx) => (
-                                <option key={idx} value={q.supplierName}>
-                                  {q.supplierName} — R$ {(q.unitPrice || q.price).toFixed(2)} {q.brand ? `[${q.brand}]` : ''}
-                                </option>
-                              ))}
-                            </select>
-                          );
-                        })()}
-                      </div>
-
-                      <div>
-                        <label className="text-xs text-gray-400 font-bold block mb-1">3. Quantidade Desejada</label>
-                        <input 
-                          type="number" 
-                          min="1"
-                          value={matForm.quantity === '' ? '' : matForm.quantity}
-                          onFocus={e => e.target.select()}
-                          onChange={e => {
-                            const v = e.target.value;
-                            setMatForm({ ...matForm, quantity: v === '' ? ('' as any) : parseInt(v) });
-                          }}
-                          className="w-full p-3 rounded-xl border border-white/10 bg-[#1a1a1a] text-white focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm font-bold"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-xs text-purple-400 font-bold block mb-1">4. Pasta / Nome do Cliente *</label>
-                        <select
-                          value={matForm.clientFolderId || (selectedClientFolderId !== 'all' ? selectedClientFolderId : '')}
-                          onChange={e => setMatForm({ ...matForm, clientFolderId: e.target.value })}
-                          className="w-full p-3 rounded-xl border border-purple-500/40 bg-[#1a1a1a] text-purple-300 focus:ring-2 focus:ring-purple-500 focus:outline-none text-sm font-bold"
-                        >
-                          <option value="">Selecione a Pasta do Cliente...</option>
-                          {clientFolders.map(f => (
-                            <option key={f.id} value={f.id}>📁 {f.name}</option>
-                          ))}
-                          <option value="__new__" className="text-emerald-400 font-black">➕ + Criar Nova Pasta para Outro Cliente...</option>
-                        </select>
-                        {matForm.clientFolderId === '__new__' && (
-                          <input
-                            autoFocus
-                            type="text"
-                            placeholder="Digite o Nome do Novo Cliente *"
-                            value={matForm.customClientName}
-                            onChange={e => setMatForm({ ...matForm, customClientName: e.target.value })}
-                            className="mt-2 w-full p-3 rounded-xl border border-purple-500 bg-[#1c1826] text-white focus:ring-2 focus:ring-purple-400 focus:outline-none text-sm font-bold placeholder-purple-300/60"
-                          />
-                        )}
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-
-              {/* MODE 2: CREATE & ADD NEW PRODUCT DIRECTLY */}
-              {addMatMode === 'new' && (
-                <div className="space-y-4 bg-[#181818] p-4 rounded-2xl border border-emerald-500/30">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs text-amber-400 font-bold block mb-1">1. Nome do Fornecedor *</label>
-                      <select 
-                        value={newMatForm.supplierId} 
-                        onChange={e => {
-                          const sel = suppliers.find(s => s.id === e.target.value);
-                          setNewMatForm({ 
-                            ...newMatForm, 
-                            supplierId: e.target.value,
-                            supplierName: sel ? sel.name : ''
-                          });
-                        }}
-                        className="w-full p-2.5 rounded-xl border border-white/10 bg-[#121212] text-white focus:ring-2 focus:ring-amber-500 focus:outline-none text-xs font-bold"
-                      >
-                        <option value="">Selecione um Fornecedor...</option>
-                        {suppliers.map(s => (
-                          <option key={s.id} value={s.id}>{s.name} ({s.category})</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="text-xs text-gray-300 font-bold block mb-1">2. Nome do Produto *</label>
-                      <input 
-                        type="text" 
-                        placeholder="Ex: MDF 15mm Branco TX"
-                        value={newMatForm.productName}
-                        onChange={e => setNewMatForm({ ...newMatForm, productName: e.target.value })}
-                        className="w-full p-2.5 rounded-xl border border-white/10 bg-[#121212] text-white focus:ring-2 focus:ring-amber-500 focus:outline-none text-xs font-bold"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-xs text-gray-300 font-bold block mb-1">3. Categoria</label>
-                      <input 
-                        type="text" 
-                        placeholder="Ex: MDF/MDP, Ferragens..."
-                        value={newMatForm.category}
-                        onChange={e => setNewMatForm({ ...newMatForm, category: e.target.value })}
-                        className="w-full p-2.5 rounded-xl border border-white/10 bg-[#121212] text-white focus:ring-2 focus:ring-amber-500 focus:outline-none text-xs"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-xs text-gray-300 font-bold block mb-1">4. Marca / Modelo</label>
-                      <input 
-                        type="text" 
-                        placeholder="Ex: Duratex, FGV, Blum..."
-                        value={newMatForm.brand}
-                        onChange={e => setNewMatForm({ ...newMatForm, brand: e.target.value })}
-                        className="w-full p-2.5 rounded-xl border border-white/10 bg-[#121212] text-white focus:ring-2 focus:ring-amber-500 focus:outline-none text-xs"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-xs text-emerald-400 font-bold block mb-1">5. Preço Unitário (R$) *</label>
-                      <input 
-                        type="number" 
-                        step="0.01"
-                        min="0"
-                        placeholder="0.00"
-                        value={newMatForm.unitPrice || ''}
-                        onChange={e => setNewMatForm({ ...newMatForm, unitPrice: parseFloat(e.target.value) || 0 })}
-                        className="w-full p-2.5 rounded-xl border border-emerald-500/40 bg-[#121212] text-emerald-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none text-xs font-bold"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-xs text-amber-400 font-bold block mb-1">6. Quantidade Desejada *</label>
-                      <input 
-                        type="number" 
-                        min="1"
-                        value={newMatForm.quantity === '' ? '' : newMatForm.quantity}
-                        onFocus={e => e.target.select()}
-                        onChange={e => {
-                          const v = e.target.value;
-                          setNewMatForm({ ...newMatForm, quantity: v === '' ? ('' as any) : parseInt(v) });
-                        }}
-                        className="w-full p-2.5 rounded-xl border border-amber-500/40 bg-[#121212] text-amber-300 focus:ring-2 focus:ring-amber-500 focus:outline-none text-xs font-bold"
-                      />
-                    </div>
-
-                    {/* Campo Nome / Pasta do Cliente */}
-                    <div className="sm:col-span-2">
-                      <label className="text-xs text-purple-400 font-bold block mb-1">7. Pasta / Nome do Cliente *</label>
-                      <select 
-                        value={newMatForm.clientFolderId || (selectedClientFolderId !== 'all' ? selectedClientFolderId : '')} 
-                        onChange={e => setNewMatForm({ ...newMatForm, clientFolderId: e.target.value })}
-                        className="w-full p-2.5 rounded-xl border border-purple-500/40 bg-[#121212] text-purple-300 focus:ring-2 focus:ring-purple-500 focus:outline-none text-xs font-bold"
-                      >
-                        <option value="">Selecione a Pasta do Cliente...</option>
-                        {clientFolders.map(f => (
-                          <option key={f.id} value={f.id}>📁 {f.name}</option>
-                        ))}
-                        <option value="__new__" className="text-emerald-400 font-black">➕ + Criar Nova Pasta para Outro Cliente...</option>
-                      </select>
-
-                      {newMatForm.clientFolderId === '__new__' && (
-                        <input
-                          autoFocus
-                          type="text"
-                          placeholder="Digite o Nome do Novo Cliente *"
-                          value={newMatForm.customClientName}
-                          onChange={e => setNewMatForm({ ...newMatForm, customClientName: e.target.value })}
-                          className="mt-2 w-full p-2.5 rounded-xl border border-purple-500 bg-[#1c1826] text-white focus:ring-2 focus:ring-purple-400 focus:outline-none text-xs font-bold placeholder-purple-300/60"
-                        />
-                      )}
-                    </div>
+                    <FolderPlus className="w-4 h-4 shrink-0 text-emerald-500/70 group-hover:text-emerald-400 transition-colors" />
+                    <span className="text-[11px] font-bold">+ Nova Pasta de Cliente</span>
                   </div>
                 </div>
-              )}
-
-              <div className="flex gap-3 pt-2">
-                {addMatMode === 'select' ? (
-                  <button onClick={handleAddMaterialToList} className="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 transition-colors text-sm w-full">
-                    Adicionar à Lista de Compras
-                  </button>
-                ) : (
-                  <button onClick={handleAddNewProductDirectlyToMaterialList} className="bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-emerald-700 transition-colors text-sm w-full">
-                    Salvar e Adicionar à Lista
-                  </button>
-                )}
-                <button onClick={() => setShowAddMatForm(false)} className="bg-white/10 border border-white/20 text-white px-6 py-3 rounded-xl font-bold hover:bg-white/20 transition-colors text-sm">Cancelar</button>
               </div>
             </div>
-          )}
 
-          {activeFolder ? (
-            <div className="bg-[#111317] border border-white/10 rounded-3xl shadow-2xl overflow-x-auto text-white space-y-2 p-1">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center px-4 py-2.5 border-b border-white/5 gap-2">
-                <span className="text-xs font-black text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <ClipboardList className="w-4 h-4 text-amber-400" /> Itens de Compra — {activeFolder.name} ({displayedList.length} itens):
-                </span>
-
-                <div className="flex items-center gap-3 flex-wrap">
-                  <button
-                    onClick={() => {
-                      setShowAddMatForm(true);
-                      setAddMatMode('select');
-                      if (comparisons.length > 0) handleSelectProductForMatList(comparisons[0].id);
-                    }}
-                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow transition-all hover:scale-[1.02]"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> Adicionar Material
-                  </button>
-
-                  <span className="text-xs text-emerald-400 font-black">
-                    Total: R$ {folderTotalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </span>
-                </div>
-              </div>
-
-              <table className="w-full min-w-[750px]">
-                <thead className="bg-[#16191f] border-b border-white/10">
-                  <tr>
-                    <th className="text-left p-4 text-xs font-black text-amber-400 uppercase">Produto / Material</th>
-                    <th className="text-left p-4 text-xs font-black text-purple-400 uppercase">Pasta / Cliente</th>
-                    <th className="text-left p-4 text-xs font-black text-emerald-400 uppercase">Fornecedor Selecionado</th>
-                    <th className="text-left p-4 text-xs font-black text-gray-400 uppercase">Marca</th>
-                    <th className="text-center p-4 text-xs font-black text-gray-400 uppercase">Qtd</th>
-                    <th className="text-right p-4 text-xs font-black text-gray-400 uppercase">Valor Unit.</th>
-                    <th className="text-right p-4 text-xs font-black text-emerald-400 uppercase">Subtotal</th>
-                    <th className="text-center p-4 text-xs font-black text-gray-400 uppercase">Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {displayedList.map(item => {
-                    // Buscar o produto comparativo correspondente
-                    const compProd = comparisons.find(c => c.id === item.productId || c.productName.toLowerCase() === item.productName.toLowerCase());
-                    const registeredSupplierNames = new Set(suppliers.map(s => s.name.trim().toLowerCase()));
-                    const validQuotes = (compProd?.quotes || []).filter(q => {
-                      if (!q || !q.supplierName) return false;
-                      const p = q.unitPrice || q.price || 0;
-                      return p > 0 && registeredSupplierNames.has(q.supplierName.trim().toLowerCase());
-                    });
-
-                    // Encontrar o menor preço do mercado cadastrado e o fornecedor correspondente
-                    let minPrice = item.selectedUnitPrice;
-                    let cheapestSupplierName = item.selectedSupplierName;
-                    validQuotes.forEach(q => {
-                      const p = q.unitPrice || q.price || 0;
-                      if (p < minPrice) {
-                        minPrice = p;
-                        cheapestSupplierName = q.supplierName;
-                      }
-                    });
-
-                    const isCheapest = validQuotes.length > 0 ? (item.selectedUnitPrice <= minPrice + 0.001) : true;
-                    const diff = item.selectedUnitPrice - minPrice;
-
-                    return (
-                      <tr key={item.id} className="border-t border-white/5 hover:bg-white/5 transition-colors">
-                        <td className="p-4 font-bold text-white">
-                          {item.productName}
-                          <span className="block text-[10px] text-amber-500/80 font-normal">{item.category}</span>
-                        </td>
-                        <td className="p-4">
-                          <span className="bg-purple-500/15 border border-purple-500/30 text-purple-300 text-xs font-bold px-2.5 py-1 rounded-xl flex items-center gap-1 w-fit">
-                            📁 {item.clientName || activeFolder.name}
-                          </span>
-                        </td>
-                        <td className="p-4">
+            {/* ═══ PAINEL DIREITO: CONTEÚDO DA PASTA SELECIONADA ═══ */}
+            <div className="flex-1 min-w-0 space-y-4">
+              {activeFolder ? (
+                <>
+                  {/* Dados da pasta aberta */}
+                  <div className="bg-gradient-to-br from-[#121418] via-[#101216] to-[#121418] border border-amber-500/30 p-5 rounded-3xl shadow-2xl space-y-4">
+                    {/* HEADER */}
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-white/10">
+                      <div className="flex items-center gap-3">
+                        <div className="w-11 h-11 rounded-2xl bg-amber-500/15 border border-amber-500/35 flex items-center justify-center text-amber-400 shrink-0 shadow-md">
+                          <Folder className="w-6 h-6" />
+                        </div>
+                        <div>
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-extrabold text-white text-xs flex items-center gap-1">
-                              🏢 {item.selectedSupplierName}
+                            <h2 className="text-xl font-black text-white tracking-wide">
+                              {activeFolder.name}
+                            </h2>
+                            <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-lg border ${
+                              activeFolder.status === 'Comprado'
+                                ? 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+                                : activeFolder.status === 'Em Cotação'
+                                ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                                : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                            }`}>
+                              {activeFolder.status || 'Pronto para Comprar'}
                             </span>
-                            {isCheapest ? (
-                              <span className="bg-emerald-500 text-black text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider shadow-sm">
-                                🏆 MENOR PREÇO
-                              </span>
-                            ) : (
-                              diff > 0 && (
-                                <span className="bg-red-500/15 border border-red-500/30 text-red-400 text-[10px] font-bold px-2 py-0.5 rounded-lg flex items-center gap-1">
-                                  <span>+ R$ {diff.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} mais caro</span>
-                                  <span className="text-emerald-400 font-extrabold">• Mais barato: {cheapestSupplierName} (R$ {minPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })})</span>
-                                </span>
-                              )
+                          </div>
+                          <div className="flex items-center gap-3 text-[11px] text-gray-400 mt-0.5">
+                            {activeFolder.phone && <span>📞 {activeFolder.phone}</span>}
+                            {activeFolder.createdAt && (
+                              <span>📅 Criado em {new Date(activeFolder.createdAt).toLocaleDateString('pt-BR')}</span>
                             )}
                           </div>
-                        </td>
-                        <td className="p-4 text-gray-300 text-sm">{item.selectedBrand || 'Geral'}</td>
-                        <td className="p-4 text-center font-bold text-amber-400">{item.quantity}</td>
-                        <td className="p-4 text-right text-gray-300">R$ {item.selectedUnitPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                        <td className="p-4 text-right font-black text-emerald-400">R$ {item.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                        <td className="p-4 text-center">
-                          <div className="flex items-center justify-center gap-1.5">
-                            {/* Botão Editar */}
-                            <button
-                              onClick={() => setEditingMatItem(item)}
-                              className="w-8 h-8 bg-white/5 border border-white/10 text-gray-400 hover:text-amber-400 hover:bg-amber-500/10 rounded-xl flex items-center justify-center transition-all"
-                              title="Editar item"
-                            >
-                              <Pencil className="w-3.5 h-3.5" />
-                            </button>
-                          {/* Botão Deletar */}
-                          <button
-                            onClick={() => handleDeleteMaterialItem(item.id)}
-                            className="w-8 h-8 bg-white/5 border border-white/10 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-xl flex items-center justify-center transition-all"
-                            title="Remover item da lista"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
                         </div>
-                      </td>
-                    </tr>
-                    );
-                  })}
-                  {displayedList.length === 0 && (
-                    <tr>
-                      <td colSpan={8} className="p-12 text-center text-gray-500">
-                        Nenhum material adicionado a esta pasta no momento. Use o botão <b>+ Adicionar Material</b> acima para incluir itens!
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            /* ─── PAINEL GERAL DE CLIENTES QUANDO NENHUM ESTÁ ABERTO ──── */
-            <div className="space-y-4">
-              
-              {/* Barra de Busca & Métricas Globais + Botão Nova Pasta */}
-              <div className="bg-[#14161b] border border-white/10 p-3.5 sm:p-4 rounded-2xl flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 shadow-md">
-                <div className="flex items-center gap-2 flex-1">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3.5 top-2.5 w-4 h-4 text-gray-400" />
-                    <input
-                      value={clientFolderSearch}
-                      onChange={e => setClientFolderSearch(e.target.value)}
-                      placeholder="🔍 Buscar cliente por nome ou telefone..."
-                      className="w-full pl-10 pr-4 py-2 rounded-xl border border-white/10 bg-[#1a1d24] text-white text-xs placeholder-gray-500 focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                    />
+                      </div>
+
+                      {/* Ações da Pasta */}
+                      <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto flex-wrap">
+                        <button
+                          onClick={() => {
+                            setEditingClientFolder(activeFolder);
+                            setClientFolderForm({
+                              name: activeFolder.name,
+                              phone: activeFolder.phone || '',
+                              notes: activeFolder.notes || '',
+                              status: activeFolder.status
+                            });
+                            setShowClientFolderModal(true);
+                          }}
+                          className="bg-white/5 hover:bg-white/10 text-gray-300 hover:text-amber-300 border border-white/10 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all"
+                        >
+                          <Pencil className="w-3.5 h-3.5 text-amber-400" /> Editar
+                        </button>
+                        <button
+                          onClick={() => setExportModal({ isOpen: true, targetSupplierName: undefined })}
+                          className="bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white border border-white/10 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all"
+                          title="Imprimir pedido ou gerar PDF"
+                        >
+                          <Printer className="w-3.5 h-3.5 text-emerald-400" /> PDF
+                        </button>
+                        <button
+                          onClick={() => setExportModal({ isOpen: true, targetSupplierName: undefined })}
+                          className="bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500/40 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-md"
+                          title="WhatsApp"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (confirm(`Excluir a pasta "${activeFolder.name}"?`)) {
+                              setClientFolders(prev => prev.filter(f => f.id !== activeFolder.id));
+                              setSelectedClientFolderId('all');
+                              toast({ title: '🗑️ Pasta excluída' });
+                            }
+                          }}
+                          className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 p-1.5 rounded-xl text-xs transition-all"
+                          title="Excluir Pasta"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* MÉTRICAS */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="bg-[#151922] border border-white/5 p-3 rounded-2xl flex items-center justify-between">
+                        <div>
+                          <span className="text-[10px] text-gray-400 uppercase font-bold block mb-0.5">Total de Itens</span>
+                          <span className="text-base font-black text-white">{displayedList.length} produtos</span>
+                        </div>
+                        <ShoppingCart className="w-5 h-5 text-amber-400/60" />
+                      </div>
+                      <div className="bg-[#151922] border border-white/5 p-3 rounded-2xl flex items-center justify-between">
+                        <div>
+                          <span className="text-[10px] text-gray-400 uppercase font-bold block mb-0.5">Fornecedores</span>
+                          <span className="text-base font-black text-purple-300">{folderSuppliersCount} cotações</span>
+                        </div>
+                        <Building className="w-5 h-5 text-purple-400/60" />
+                      </div>
+                      <div className="bg-[#151922] border border-emerald-500/30 p-3 rounded-2xl flex items-center justify-between">
+                        <div>
+                          <span className="text-[10px] text-emerald-400 uppercase font-bold block mb-0.5">Valor Total</span>
+                          <span className="text-base sm:text-lg font-black text-emerald-400">
+                            R$ {folderTotalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                        <DollarSign className="w-5 h-5 text-emerald-400/60" />
+                      </div>
+                    </div>
+
+                    {/* AÇÕES POR FORNECEDOR */}
+                    {(() => {
+                      const folderSuppliers = Array.from(new Set(displayedList.map(it => it.selectedSupplierName))).filter(Boolean);
+                      if (folderSuppliers.length === 0) return null;
+                      return (
+                        <div className="space-y-2.5 pt-2 border-t border-white/10">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-black text-white flex items-center gap-1.5">
+                              <Send className="w-3.5 h-3.5 text-amber-400" /> Ações por Fornecedor:
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                            {folderSuppliers.map(suppName => {
+                              const suppItems = displayedList.filter(it => it.selectedSupplierName === suppName);
+                              const suppTotal = suppItems.reduce((acc, curr) => acc + curr.total, 0);
+                              return (
+                                <div key={suppName} className="bg-[#151922] border border-amber-500/25 hover:border-amber-500/50 p-3 rounded-2xl flex flex-col justify-between gap-2.5 shadow-md transition-all">
+                                  <div className="flex items-center justify-between gap-1.5">
+                                    <span className="font-black text-xs text-white flex items-center gap-1.5 truncate">
+                                      🏢 {suppName}
+                                    </span>
+                                    <span className="bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] px-2 py-0.5 rounded-lg font-black shrink-0">
+                                      {suppItems.length} itens • R$ {suppTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                    </span>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-2 pt-1 border-t border-white/5">
+                                    <button onClick={() => setExportModal({ isOpen: true, targetSupplierName: suppName })} className="bg-white/5 hover:bg-white/15 text-amber-300 hover:text-white border border-white/10 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all" title={`PDF para ${suppName}`}>
+                                      <Printer className="w-3.5 h-3.5 text-amber-400" />
+                                      <span>PDF</span>
+                                    </button>
+                                    <button onClick={() => handleSendWhatsAppMaterialList(suppName, true)} className="bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1.5 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all shadow-md" title={`WhatsApp para ${suppName}`}>
+                                      <MessageCircle className="w-3.5 h-3.5 text-white" />
+                                      <span>WhatsApp</span>
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {activeFolder.notes && (
+                      <div className="bg-amber-500/5 border border-amber-500/20 px-3.5 py-2 rounded-xl text-xs text-amber-200/90 flex items-start gap-2">
+                        <span className="font-bold shrink-0">📝 Obs:</span>
+                        <span>{activeFolder.notes}</span>
+                      </div>
+                    )}
                   </div>
 
+                  {/* ─── TABELA DE ITENS DA PASTA ─── */}
+                  <div className="bg-[#111317] border border-white/10 rounded-3xl shadow-2xl overflow-x-auto text-white space-y-2 p-1">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center px-4 py-2.5 border-b border-white/5 gap-2">
+                      <span className="text-xs font-black text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <ClipboardList className="w-4 h-4 text-amber-400" /> Itens de Compra — {activeFolder.name} ({displayedList.length} itens):
+                      </span>
+
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <button
+                          onClick={() => {
+                            setShowAddMatForm(true);
+                            setAddMatMode('select');
+                            if (comparisons.length > 0) handleSelectProductForMatList(comparisons[0].id);
+                          }}
+                          className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow transition-all hover:scale-[1.02] cursor-pointer"
+                        >
+                          <Plus className="w-3.5 h-3.5" /> Adicionar Material
+                        </button>
+
+                        <span className="text-xs text-emerald-400 font-black">
+                          Total: R$ {folderTotalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    </div>
+
+                    <table className="w-full min-w-[750px]">
+                      <thead className="bg-[#16191f] border-b border-white/10">
+                        <tr>
+                          <th className="text-left p-4 text-xs font-black text-amber-400 uppercase">Produto / Material</th>
+                          <th className="text-left p-4 text-xs font-black text-purple-400 uppercase">Pasta / Cliente</th>
+                          <th className="text-left p-4 text-xs font-black text-emerald-400 uppercase">Fornecedor Selecionado</th>
+                          <th className="text-left p-4 text-xs font-black text-gray-400 uppercase">Marca</th>
+                          <th className="text-center p-4 text-xs font-black text-gray-400 uppercase">Qtd</th>
+                          <th className="text-right p-4 text-xs font-black text-gray-400 uppercase">Valor Unit.</th>
+                          <th className="text-right p-4 text-xs font-black text-emerald-400 uppercase">Subtotal</th>
+                          <th className="text-center p-4 text-xs font-black text-gray-400 uppercase">Ações</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {displayedList.map(item => {
+                          const compProd = comparisons.find(c => c.id === item.productId || c.productName.toLowerCase() === item.productName.toLowerCase());
+                          const registeredSupplierNames = new Set(suppliers.map(s => s.name.trim().toLowerCase()));
+                          const validQuotes = (compProd?.quotes || []).filter(q => {
+                            if (!q || !q.supplierName) return false;
+                            const p = q.unitPrice || q.price || 0;
+                            return p > 0 && registeredSupplierNames.has(q.supplierName.trim().toLowerCase());
+                          });
+
+                          let minPrice = item.selectedUnitPrice;
+                          let cheapestSupplierName = item.selectedSupplierName;
+                          validQuotes.forEach(q => {
+                            const p = q.unitPrice || q.price || 0;
+                            if (p < minPrice) {
+                              minPrice = p;
+                              cheapestSupplierName = q.supplierName;
+                            }
+                          });
+
+                          const isCheapest = validQuotes.length > 0 ? (item.selectedUnitPrice <= minPrice + 0.001) : true;
+                          const diff = item.selectedUnitPrice - minPrice;
+
+                          return (
+                            <tr key={item.id} className="border-t border-white/5 hover:bg-white/5 transition-colors">
+                              <td className="p-4 font-bold text-white">
+                                {item.productName}
+                                <span className="block text-[10px] text-amber-500/80 font-normal">{item.category}</span>
+                              </td>
+                              <td className="p-4">
+                                <span className="bg-purple-500/15 border border-purple-500/30 text-purple-300 text-xs font-bold px-2.5 py-1 rounded-xl flex items-center gap-1 w-fit">
+                                  📁 {item.clientName || activeFolder.name}
+                                </span>
+                              </td>
+                              <td className="p-4">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-extrabold text-white text-xs flex items-center gap-1">
+                                    🏢 {item.selectedSupplierName}
+                                  </span>
+                                  {isCheapest ? (
+                                    <span className="bg-emerald-500 text-black text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider shadow-sm">
+                                      🏆 MENOR PREÇO
+                                    </span>
+                                  ) : (
+                                    diff > 0 && (
+                                      <span className="bg-red-500/15 border border-red-500/30 text-red-400 text-[10px] font-bold px-2 py-0.5 rounded-lg flex items-center gap-1">
+                                        <span>+ R$ {diff.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} mais caro</span>
+                                        <span className="text-emerald-400 font-extrabold">• Mais barato: {cheapestSupplierName} (R$ {minPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })})</span>
+                                      </span>
+                                    )
+                                  )}
+                                </div>
+                              </td>
+                              <td className="p-4 text-gray-300 text-sm">{item.selectedBrand || 'Geral'}</td>
+                              <td className="p-4 text-center font-bold text-amber-400">{item.quantity}</td>
+                              <td className="p-4 text-right text-gray-300">R$ {item.selectedUnitPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                              <td className="p-4 text-right font-black text-emerald-400">R$ {item.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                              <td className="p-4 text-center">
+                                <div className="flex items-center justify-center gap-1.5">
+                                  <button
+                                    onClick={() => setEditingMatItem(item)}
+                                    className="w-8 h-8 bg-white/5 border border-white/10 text-gray-400 hover:text-amber-400 hover:bg-amber-500/10 rounded-xl flex items-center justify-center transition-all cursor-pointer"
+                                    title="Editar item"
+                                  >
+                                    <Pencil className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteMaterialItem(item.id)}
+                                    className="w-8 h-8 bg-white/5 border border-white/10 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-xl flex items-center justify-center transition-all cursor-pointer"
+                                    title="Remover item da lista"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        {displayedList.length === 0 && (
+                          <tr>
+                            <td colSpan={8} className="p-12 text-center text-gray-500">
+                              Nenhum material adicionado a esta pasta no momento. Use o botão <b>+ Adicionar Material</b> acima para incluir itens!
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              ) : (
+                <div className="bg-[#111317] border border-white/10 rounded-3xl p-12 text-center space-y-3 shadow-xl">
+                  <Folder className="w-12 h-12 text-amber-500/30 mx-auto" />
+                  <h3 className="text-lg font-black text-white">Nenhuma Pasta Encontrada</h3>
+                  <p className="text-sm text-gray-400 max-w-md mx-auto">
+                    Crie a sua primeira pasta de cliente para começar a organizar as suas cotações e compras.
+                  </p>
                   <button
                     onClick={() => {
                       setEditingClientFolder(null);
                       setClientFolderForm({ name: '', phone: '', notes: '', status: 'Pronto para Comprar' });
                       setShowClientFolderModal(true);
                     }}
-                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 shrink-0 shadow-md transition-all hover:scale-[1.02] active:scale-95"
-                    title="Criar nova pasta de cliente"
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 mx-auto mt-2 shadow-md transition-all cursor-pointer"
                   >
-                    <Plus className="w-4 h-4" />
-                    <span>+ Nova Pasta</span>
+                    <Plus className="w-4 h-4" /> Criar Nova Pasta
                   </button>
                 </div>
-
-                <div className="flex items-center gap-2 sm:gap-3 text-[11px] sm:text-xs text-gray-400 flex-wrap justify-between md:justify-end border-t md:border-t-0 pt-2 md:pt-0 border-white/5">
-                  <span>Pastas: <b className="text-white">{clientFolders.length}</b></span>
-                  <span>•</span>
-                  <span>Total Itens: <b className="text-white">{materialList.length}</b></span>
-                  <span>•</span>
-                  <span>Total Compras: <b className="text-emerald-400 font-bold">R$ {materialList.reduce((acc, curr) => acc + curr.total, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</b></span>
-                </div>
-              </div>
-
-              {/* Lista estilo Explorador de Arquivos */}
-              <div className="bg-[#0f1115] border border-white/10 rounded-2xl overflow-hidden shadow-xl">
-                {clientFolders
-                  .filter(f => {
-                    const q = clientFolderSearch.toLowerCase().trim();
-                    return !q || f.name.toLowerCase().includes(q) || (f.phone && f.phone.includes(q));
-                  })
-                  .map((f, index, arr) => {
-                    const fItems = materialList.filter(m => m.clientFolderId === f.id || (m.clientName && m.clientName.toLowerCase() === f.name.toLowerCase()));
-                    const fTotal = fItems.reduce((acc, curr) => acc + curr.total, 0);
-                    const isLast = index === arr.length - 1;
-
-                    return (
-                      <div
-                        key={f.id}
-                        onClick={() => setSelectedClientFolderId(f.id)}
-                        className={`group flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-amber-500/10 transition-all ${!isLast ? 'border-b border-white/[0.06]' : ''}`}
-                      >
-                        {/* Ícone da pasta */}
-                        <Folder className="w-5 h-5 text-amber-400 shrink-0 group-hover:text-amber-300 transition-colors" />
-
-                        {/* Nome e info */}
-                        <div className="flex-1 min-w-0">
-                          <span className="font-black text-sm text-white group-hover:text-amber-300 transition-colors truncate block">
-                            {f.name}
-                          </span>
-                          <span className="text-[10px] text-gray-500">
-                            {fItems.length} {fItems.length === 1 ? 'item' : 'itens'}
-                            {f.phone ? ` • 📞 ${f.phone}` : ''}
-                          </span>
-                        </div>
-
-                        {/* Status badge */}
-                        <span className={`text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-wide shrink-0 hidden sm:inline-block ${
-                          f.status === 'Comprado'
-                            ? 'bg-blue-500/20 text-blue-300'
-                            : f.status === 'Em Cotação'
-                            ? 'bg-amber-500/20 text-amber-300'
-                            : 'bg-emerald-500/20 text-emerald-300'
-                        }`}>
-                          {f.status || 'Pronto'}
-                        </span>
-
-                        {/* Valor */}
-                        {fTotal > 0 && (
-                          <span className="text-emerald-400 font-black text-xs shrink-0 hidden md:inline">
-                            R$ {fTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                          </span>
-                        )}
-
-                        {/* Ações — aparecem no hover */}
-                        <div
-                          className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={e => e.stopPropagation()}
-                        >
-                          <button
-                            onClick={() => setSelectedClientFolderId(f.id)}
-                            className="bg-amber-500 hover:bg-amber-400 text-black font-black px-3 py-1 rounded-lg text-[10px] flex items-center gap-1 transition-all"
-                            title="Abrir pasta"
-                          >
-                            Abrir
-                          </button>
-                          <button
-                            onClick={() => {
-                              setEditingClientFolder(f);
-                              setClientFolderForm({ name: f.name, phone: f.phone || '', notes: f.notes || '', status: f.status });
-                              setShowClientFolderModal(true);
-                            }}
-                            className="w-7 h-7 bg-white/5 hover:bg-white/15 text-gray-400 hover:text-amber-300 rounded-lg flex items-center justify-center transition-all"
-                            title="Editar pasta"
-                          >
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-
-                {/* Linha de criar nova pasta */}
-                <div
-                  onClick={() => {
-                    setEditingClientFolder(null);
-                    setClientFolderForm({ name: '', phone: '', notes: '', status: 'Pronto para Comprar' });
-                    setShowClientFolderModal(true);
-                  }}
-                  className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-emerald-500/10 transition-all border-t border-white/[0.06] text-gray-500 hover:text-emerald-400 group"
-                >
-                  <FolderPlus className="w-5 h-5 shrink-0 text-emerald-500 group-hover:text-emerald-400 transition-colors" />
-                  <span className="text-xs font-bold">+ Nova Pasta de Cliente</span>
-                </div>
-              </div>
-
+              )}
             </div>
-          )}
-
+          </div>
 
         </div>
         );
