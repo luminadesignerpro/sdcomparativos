@@ -90,32 +90,7 @@ interface BatchImportItem {
   quantity: number;
 }
 
-const DEFAULT_COMPARISONS: ProductComparison[] = [
-  {
-    id: '1',
-    productName: 'Chapa MDF 15mm Branco TX 2,75x1,85m',
-    category: 'MDF/MDP',
-    unit: 'Chapa',
-    description: 'MDF melamínico de alta densidade 15mm com revestimento Texturizado Branco.',
-    quotes: [
-      { supplierId: 's1', supplierName: 'Leo Madeiras', brand: 'Duratex', pricePerM2: 39.00, unitPrice: 198.50, price: 198.50, updatedAt: '2026-08-16', specifications: 'Chapa inteira. Entrega em até 2 dias.' },
-      { supplierId: 's2', supplierName: 'Gmad', brand: 'Arauco', pricePerM2: 43.00, unitPrice: 219.00, price: 219.00, updatedAt: '2026-08-15', specifications: 'Melamina resistente a riscos.' },
-      { supplierId: 's3', supplierName: 'Eucatex Distribuidora', brand: 'Eucatex', pricePerM2: 41.20, unitPrice: 210.00, price: 210.00, updatedAt: '2026-08-14' },
-    ]
-  },
-  {
-    id: '2',
-    productName: 'Dobradiça 35mm Curva c/ Amortecedor',
-    category: 'Ferragens',
-    unit: 'Par',
-    description: 'Dobradiça caneco 35mm pistão de amortecimento soft-close.',
-    quotes: [
-      { supplierId: 's1', supplierName: 'Gmad', brand: 'FGV TN', pricePerM2: null, unitPrice: 6.90, price: 6.90, updatedAt: '2026-08-16', specifications: 'Acompanha calço 4 furos e parafusos.' },
-      { supplierId: 's2', supplierName: 'FGV Central', brand: 'FGV TN', pricePerM2: null, unitPrice: 7.20, price: 7.20, updatedAt: '2026-08-10' },
-      { supplierId: 's3', supplierName: 'Leo Madeiras', brand: 'Häfele', pricePerM2: null, unitPrice: 8.50, price: 8.50, updatedAt: '2026-08-15' },
-    ]
-  }
-];
+const DEFAULT_COMPARISONS: ProductComparison[] = [];
 
 // ─── Modal Isolado para Digitação Rápida sem Lag ──────────────────────────
 interface TextImportModalProps {
@@ -494,8 +469,12 @@ const SuppliersPage: React.FC = () => {
 
   // Comparisons state
   const [comparisons, setComparisons] = useState<ProductComparison[]>(() => {
-    const saved = localStorage.getItem('sd_supplier_comparisons_v3');
-    return saved ? JSON.parse(saved) : DEFAULT_COMPARISONS;
+    try {
+      const saved = localStorage.getItem('sd_supplier_comparisons_v3');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
   });
   const [compSearch, setCompSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('Todos');
@@ -696,6 +675,30 @@ const SuppliersPage: React.FC = () => {
       return prev;
     });
   }, []);
+
+  // Excluir todos os produtos do sistema
+  const handleClearAllProducts = () => {
+    if (window.confirm('⚠️ Tem certeza que deseja excluir TODOS os produtos e cotações cadastrados no sistema? Esta ação limpará o comparativo por completo.')) {
+      setComparisons([]);
+      localStorage.setItem('sd_supplier_comparisons_v3', JSON.stringify([]));
+      toast({ title: '🗑️ Todos os produtos foram excluídos com sucesso!' });
+    }
+  };
+
+  // Excluir todas as cotações de um fornecedor específico
+  const handleClearSupplierProducts = (supplierName: string) => {
+    if (window.confirm(`⚠️ Deseja excluir todas as cotações do fornecedor "${supplierName}"?`)) {
+      setComparisons(prev => {
+        const updated = prev.map(c => ({
+          ...c,
+          quotes: c.quotes.filter(q => q.supplierName.toLowerCase() !== supplierName.toLowerCase())
+        })).filter(c => c.quotes.length > 0);
+        localStorage.setItem('sd_supplier_comparisons_v3', JSON.stringify(updated));
+        return updated;
+      });
+      toast({ title: `🗑️ Todas as cotações de ${supplierName} foram excluídas!` });
+    }
+  };
 
   
 
@@ -2774,6 +2777,16 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
                         <Sparkles className="w-3.5 h-3.5" /> <span>Importar com IA</span>
                       </button>
 
+                      {supplierProducts.length > 0 && (
+                        <button 
+                          onClick={() => handleClearSupplierProducts(currentSupplier.name)}
+                          className="w-full md:w-auto justify-center bg-red-500/10 hover:bg-red-500/25 border border-red-500/30 text-red-300 font-bold px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow transition-all active:scale-[0.98]"
+                          title={`Excluir todos os produtos de ${currentSupplier.name}`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-red-400" /> <span>Limpar Fornecedor</span>
+                        </button>
+                      )}
+
                       <button 
                         onClick={() => {
                           const html = `
@@ -4257,12 +4270,24 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
               {/* 5. Excluir sem Comparação */}
               <button
                 onClick={handleDeleteUncomparedProducts}
-                className="bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/30 p-4 rounded-2xl text-xs font-black flex flex-col items-center justify-center gap-2 transition-all shadow-md hover:scale-[1.02] active:scale-[0.98] group"
+                className="bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 hover:text-orange-300 border border-orange-500/30 p-4 rounded-2xl text-xs font-black flex flex-col items-center justify-center gap-2 transition-all shadow-md hover:scale-[1.02] active:scale-[0.98] group"
+              >
+                <div className="w-10 h-10 rounded-xl bg-orange-500/20 border border-orange-500/30 flex items-center justify-center text-orange-400 group-hover:scale-110 transition-transform">
+                  <Trash2 className="w-5 h-5" />
+                </div>
+                <span>🗑️ Excluir sem Comparação</span>
+              </button>
+
+              {/* 6. Excluir TODOS os Produtos */}
+              <button
+                onClick={handleClearAllProducts}
+                className="bg-red-500/15 hover:bg-red-500/25 text-red-300 hover:text-red-200 border border-red-500/40 p-4 rounded-2xl text-xs font-black flex flex-col items-center justify-center gap-2 transition-all shadow-md hover:scale-[1.02] active:scale-[0.98] group"
+                title="Excluir todos os produtos e cotações do comparativo"
               >
                 <div className="w-10 h-10 rounded-xl bg-red-500/20 border border-red-500/30 flex items-center justify-center text-red-400 group-hover:scale-110 transition-transform">
                   <Trash2 className="w-5 h-5" />
                 </div>
-                <span>🗑️ Excluir sem Comparação</span>
+                <span>🗑️ Limpar Todos os Produtos</span>
               </button>
             </div>
           </div>
