@@ -10,12 +10,13 @@ import {
   Printer, ShoppingCart, CheckSquare, Sparkles, Camera, Eye, X, Loader2,
   FileText, ExternalLink, Check, Download, User, PenLine, Pencil,
   Folder, FolderPlus, FolderOpen, FolderCheck, LayoutGrid, List,
-  MessageCircle, Send, Percent, ChevronDown, Scissors, Layout, Settings
+  MessageCircle, Send, Percent, ChevronDown, Scissors, Layout, Settings, RefreshCw, Cloud
 } from 'lucide-react';
 import { CuttingPlanModule } from './CuttingPlanModule';
 import { AntigravityAIStudio } from './AntigravityAIStudio';
 import { GeminiAIModule } from './GeminiAIModule';
 import { ClaudeAIModule } from './ClaudeAIModule';
+import { initCloudSync, pushCloudState, fetchCloudState, CloudStatePayload } from '@/services/cloudSyncService';
 
 declare global {
   interface Window {
@@ -615,18 +616,75 @@ const SuppliersPage: React.FC = () => {
     customClientName: ''
   });
 
+  const [isCloudSyncing, setIsCloudSyncing] = useState(false);
+
+  // ─── SINCRONIZAÇÃO EM TEMPO REAL ENTRE CELULAR E COMPUTADOR ─────────────
   useEffect(() => {
-    localStorage.setItem('sd_supplier_comparisons_v3', JSON.stringify(comparisons));
+    // 1. Inicializa o canal Realtime do Supabase
+    const cleanup = initCloudSync((cloudData) => {
+      if (cloudData.comparisons && Array.isArray(cloudData.comparisons)) {
+        setComparisons(cloudData.comparisons);
+      }
+      if (cloudData.clientFolders && Array.isArray(cloudData.clientFolders)) {
+        setClientFolders(cloudData.clientFolders);
+      }
+      if (cloudData.materialList && Array.isArray(cloudData.materialList)) {
+        setMaterialList(cloudData.materialList);
+      }
+      if (cloudData.suppliers && Array.isArray(cloudData.suppliers) && cloudData.suppliers.length > 0) {
+        setSuppliers(cloudData.suppliers);
+      }
+    });
+
+    // 2. Ao focar na janela ou voltar para a aba no Computador/Celular, busca os dados atualizados
+    const handleRefreshOnFocus = async () => {
+      setIsCloudSyncing(true);
+      await fetchCloudState();
+      setIsCloudSyncing(false);
+    };
+
+    window.addEventListener('focus', handleRefreshOnFocus);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) handleRefreshOnFocus();
+    });
+
+    // 3. Busca inicial ao carregar a página
+    fetchCloudState().finally(() => setLoading(false));
+
+    return () => {
+      cleanup();
+      window.removeEventListener('focus', handleRefreshOnFocus);
+    };
+  }, []);
+
+  // Transmite e salva na Nuvem qualquer alteração em Comparações
+  useEffect(() => {
+    pushCloudState({ comparisons });
   }, [comparisons]);
 
+  // Transmite e salva na Nuvem qualquer alteração em Pastas de Clientes
   useEffect(() => {
-    localStorage.setItem('sd_material_list_v1', JSON.stringify(materialList));
+    pushCloudState({ clientFolders });
+  }, [clientFolders]);
+
+  // Transmite e salva na Nuvem qualquer alteração na Lista de Materiais
+  useEffect(() => {
+    pushCloudState({ materialList });
   }, [materialList]);
+
+  // Transmite e salva na Nuvem qualquer alteração em Fornecedores
+  useEffect(() => {
+    if (suppliers.length > 0) {
+      pushCloudState({ suppliers });
+    }
+  }, [suppliers]);
 
   const fetchSuppliers = async () => {
     setLoading(true);
     const { data } = await db.from('suppliers').select('*').eq('active', true).order('name');
-    setSuppliers(data || []);
+    if (data && data.length > 0) {
+      setSuppliers(data);
+    }
     setLoading(false);
   };
 
@@ -2613,11 +2671,31 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
             ))}
           </div>
 
-          {/* REAJUSTAR PREÇOS */}
-          <div className="shrink-0">
+          {/* AÇÕES DA DIREITA: SINCRONIZAR NUVEM & REAJUSTAR PREÇOS */}
+          <div className="shrink-0 flex items-center gap-2">
+            <button
+              onClick={async () => {
+                setIsCloudSyncing(true);
+                toast({ title: '☁️ Sincronizando com a Nuvem...' });
+                const res = await fetchCloudState();
+                setIsCloudSyncing(false);
+                if (res) {
+                  toast({ title: '✅ Sincronizado!', description: 'Todos os produtos e pastas foram atualizados com a nuvem.' });
+                } else {
+                  toast({ title: '☁️ Sistema em dia!', description: 'Você já está com a versão mais recente.' });
+                }
+              }}
+              className="bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 hover:text-sky-200 border border-sky-500/30 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm shrink-0"
+              title="Sincronizar dados entre Celular e Computador"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 text-sky-400 ${isCloudSyncing ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">Sincronizar Nuvem</span>
+              <span className="sm:hidden">Sincronizar</span>
+            </button>
+
             <button
               onClick={() => setShowPriceAdjustmentModal(true)}
-              className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 hover:text-amber-200 border border-amber-500/30 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm shrink-0"
+              className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 hover:text-amber-200 border border-amber-500/30 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm shrink-0"
               title="Reajustar preços em porcentagem (%)"
             >
               <Percent className="w-3.5 h-3.5 text-amber-400" />
