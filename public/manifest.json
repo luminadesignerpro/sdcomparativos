@@ -1,7 +1,7 @@
 {
-  "name": "SD Móveis Projetados",
-  "short_name": "SD Móveis",
-  "description": "Sistema de gestão e portal do cliente para SD Móveis Projetados",
+  "name": "SDcomparativo",
+  "short_name": "SDcomparativo",
+  "description": "SDcomparativo - Sistema de Comparação de Preços & Gestão de Fornecedores",
   "start_url": "/",
   "id": "/",
   "scope": "/",

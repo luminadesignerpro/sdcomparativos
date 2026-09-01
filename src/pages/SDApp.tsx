@@ -667,7 +667,7 @@ const App: React.FC = () => {
                   </h1>
                   <p className="text-gray-400 mt-1 flex items-center gap-2">
                     <Heart className="w-4 h-4 text-amber-400 fill-amber-400" />
-                    Bem-vindo ao centro de comando SD Móveis
+                    Bem-vindo ao centro de comando SDcomparativo
                   </p>
                 </div>
                 <div className="flex items-center gap-4">
@@ -1471,9 +1471,8 @@ const App: React.FC = () => {
           {/* Conteúdo Central */}
           <div className="relative z-10 flex flex-col items-center mt-20 md:mt-16 landscape:mt-8 px-4 pb-8 w-full">
 
-            {/* Título */}
             <h1 className="text-2xl md:text-4xl font-black text-white mb-2 tracking-tight text-center">
-              SD Móveis <span className="text-amber-400">Projetados</span>
+              SD<span className="text-amber-400">comparativo</span>
             </h1>
             <p className="text-gray-400 text-sm mb-6 md:mb-12 landscape:mb-4">Selecione seu tipo de acesso</p>
 
@@ -1620,7 +1619,7 @@ const App: React.FC = () => {
                 <img src={logoSD} alt="SD" className="w-full h-full object-cover" />
               </div>
               <div>
-                <p className="text-white font-medium text-sm">SD Móveis Projetados</p>
+                <p className="text-white font-medium text-sm">SDcomparativo</p>
                 <p className="text-gray-500 text-xs">Sistema PRO AI v5.3</p>
               </div>
             </div>
@@ -1670,7 +1669,7 @@ const App: React.FC = () => {
                   } shadow-xl`} style={{ transform: 'translateZ(0)', backfaceVisibility: 'hidden' }}>
                   <img
                     src={logoSD}
-                    alt="SD Móveis"
+                    alt="SDcomparativo"
                     className="w-full h-full object-cover"
                     style={{ imageRendering: 'auto', transform: 'translateZ(0)' }}
                   />
@@ -1678,7 +1677,7 @@ const App: React.FC = () => {
               </div>
 
               <h2 className="text-2xl font-black text-white mb-2">
-                SD Móveis <span className="text-amber-400">Projetados</span>
+                SD<span className="text-amber-400">comparativo</span>
               </h2>
               <p className="text-gray-400 text-sm mb-8">
                 {selectedRole === 'EMPLOYEE' ? 'Digite seu nome e senha' : 'Digite sua senha para continuar'}
