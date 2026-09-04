@@ -1,10 +1,11 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import SuppliersPage from "@/components/modules/SuppliersPage";
-import { Layers, Scale, Sparkles, ShoppingBag } from "lucide-react";
+import { SDLoginScreen } from "@/components/auth/SDLoginScreen";
+import { Layers, Scale, Sparkles, ShoppingBag, LogOut, User, Shield } from "lucide-react";
 import logoSVG from "@/assets/logo.svg";
 import bannerSVG from "@/assets/banner.svg";
 
@@ -18,6 +19,34 @@ const queryClient = new QueryClient({
 });
 
 const SDComparativoApp: React.FC = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return localStorage.getItem("sd_auth_token") === "authenticated";
+  });
+  const [currentUser, setCurrentUser] = useState<string>(() => {
+    return localStorage.getItem("sd_auth_user") || "admin";
+  });
+
+  const handleLoginSuccess = (user: string) => {
+    setCurrentUser(user);
+    setIsAuthenticated(true);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("sd_auth_token");
+    localStorage.removeItem("sd_auth_user");
+    setIsAuthenticated(false);
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <SDLoginScreen
+        onLoginSuccess={handleLoginSuccess}
+        appName="SDcomparativo"
+        subtitle="Comparador Inteligente de Preços & Gestão de Fornecedores"
+      />
+    );
+  }
+
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-slate-950 text-slate-100 font-sans selection:bg-amber-500 selection:text-black">
 
@@ -50,6 +79,24 @@ const SDComparativoApp: React.FC = () => {
                 Comparador Inteligente de Preços &amp; Gestão de Fornecedores
               </p>
             </div>
+          </div>
+
+          {/* Ações do Usuário & Logout */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/60 text-xs text-slate-300">
+              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <User className="w-3.5 h-3.5 text-amber-400" />
+              <span className="font-semibold text-white truncate max-w-[120px]">{currentUser}</span>
+            </div>
+
+            <button
+              onClick={handleLogout}
+              title="Sair do Sistema"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/30 text-xs font-semibold transition-colors duration-150 cursor-pointer"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="hidden xs:inline">Sair</span>
+            </button>
           </div>
         </div>
       </header>

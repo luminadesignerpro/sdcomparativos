@@ -3220,7 +3220,7 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
               return (
                 <div 
                   key={item.id} 
-                  className="bg-[#121418] hover:bg-[#161a22] border border-white/10 hover:border-amber-500/40 transition-all rounded-2xl p-3.5 shadow-md flex flex-col xl:flex-row xl:items-center justify-between gap-3"
+                  className="bg-[#121418] hover:bg-[#161a22] border border-white/10 hover:border-amber-500/40 transition-all rounded-2xl p-2.5 sm:p-3.5 shadow-md flex flex-col xl:flex-row xl:items-center justify-between gap-2.5 sm:gap-3"
                 >
                   {/* 1. Coluna do Produto & Categoria */}
                   <div className="w-full xl:w-64 shrink-0 flex items-center gap-2.5 min-w-0">
@@ -3238,7 +3238,7 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
                   </div>
 
                   {/* 2. Grid de Cotações 100% Padronizadas com Nome em Destaque */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 flex-1 min-w-0">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-2.5 flex-1 min-w-0">
                     {sortedQuotes.map((q, idx) => {
                       const val = q.unitPrice || q.price || 0;
                       const isWinner = idx === 0;
@@ -3246,29 +3246,32 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
                       return (
                         <div
                           key={idx}
-                          className={`group relative flex flex-col justify-between p-2.5 rounded-2xl border transition-all duration-200 shadow-sm min-w-0 ${
+                          className={`group relative flex flex-col justify-between p-2 sm:p-2.5 rounded-2xl border transition-all duration-200 shadow-sm min-w-0 ${
                             isWinner
                               ? 'bg-gradient-to-br from-emerald-950/80 via-[#0a1f18] to-teal-950/80 border-emerald-500/60 text-emerald-300 shadow-emerald-500/10 ring-1 ring-emerald-500/30'
                               : 'bg-slate-900/90 border-white/10 text-slate-300 hover:border-slate-700 hover:bg-slate-850'
                           }`}
                         >
                           {/* Linha Superior: Nome do Fornecedor + Selo de Menor Preço */}
-                          <div className="flex items-center justify-between gap-1 w-full">
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              <span className="text-xs shrink-0">{isWinner ? '🥇' : '🏢'}</span>
-                              <span className="font-black text-white text-xs truncate uppercase tracking-wider">
+                          <div className="flex items-start justify-between gap-1 w-full min-w-0">
+                            <div className="flex items-start gap-1 min-w-0 flex-1">
+                              <span className="text-xs shrink-0 mt-0.5 select-none">{isWinner ? '🥇' : '🏢'}</span>
+                              <span 
+                                className="font-black text-white text-[11px] sm:text-xs uppercase tracking-tight leading-tight line-clamp-2 break-words"
+                                title={q.supplierName}
+                              >
                                 {q.supplierName}
                               </span>
                             </div>
                             
-                            <div className="flex items-center gap-1 shrink-0">
+                            <div className="flex items-center gap-1 shrink-0 ml-1">
                               {isWinner ? (
-                                <span className="bg-emerald-500 text-slate-950 text-[9px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-tight shadow-sm">
+                                <span className="bg-emerald-500 text-slate-950 text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-tight shadow-sm whitespace-nowrap">
                                   Menor
                                 </span>
                               ) : (
                                 diff > 0 && (
-                                  <span className="text-[10px] text-red-400 bg-red-500/10 border border-red-500/20 px-1.5 py-0.5 rounded-md font-semibold font-mono">
+                                  <span className="text-[9px] sm:text-[10px] text-red-400 bg-red-500/15 border border-red-500/25 px-1 py-0.5 rounded-md font-bold font-mono whitespace-nowrap">
                                     +R$ {Math.round(val - cheapestVal)}
                                   </span>
                                 )
@@ -3279,7 +3282,7 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
                                   e.stopPropagation();
                                   handleDeleteQuote(item.id, q.supplierName);
                                 }}
-                                className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-400 p-0.5 rounded transition-all"
+                                className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-400 p-0.5 rounded transition-all shrink-0"
                                 title="Remover cotação"
                               >
                                 <X className="w-3 h-3" />
@@ -3289,7 +3292,7 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
 
                           {/* Linha Inferior: Preço + Botão de Compra */}
                           <div className="flex items-center justify-between gap-1 mt-2 pt-1.5 border-t border-white/5">
-                            <span className={`font-black text-sm font-mono ${isWinner ? 'text-emerald-400 font-bold' : 'text-slate-100'}`}>
+                            <span className={`font-black text-xs sm:text-sm font-mono tracking-tight ${isWinner ? 'text-emerald-400 font-bold' : 'text-slate-100'}`}>
                               R$ {val.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                             </span>
 
