@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { User, Lock, Key, ArrowRight, X, MessageSquare, ShieldCheck, Sparkles } from "lucide-react";
-import logoSVG from "@/assets/logo.svg";
+import appLogo from "@/assets/logo-sd.png";
 
 interface SDLoginScreenProps {
   onLoginSuccess: (username: string) => void;
@@ -78,8 +78,8 @@ export const SDLoginScreen: React.FC<SDLoginScreenProps> = ({
           {/* Header com Logo & Branding */}
           <div className="flex flex-col items-center text-center mb-6">
             <div className="relative mb-3">
-              <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-amber-500/40 flex items-center justify-center shadow-lg shadow-amber-500/10 overflow-hidden">
-                <img src={logoSVG} alt="SDcomparativo" className="w-full h-full object-cover" />
+              <div className="w-16 h-16 rounded-2xl bg-black border border-amber-500/50 flex items-center justify-center shadow-xl shadow-amber-500/20 overflow-hidden">
+                <img src={appLogo} alt="SDcomparativo" className="w-full h-full object-cover" />
               </div>
               <span className="absolute -bottom-1 -right-1 flex h-3 w-3">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>

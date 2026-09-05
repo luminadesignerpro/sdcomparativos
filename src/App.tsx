@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import SuppliersPage from "@/components/modules/SuppliersPage";
 import { SDLoginScreen } from "@/components/auth/SDLoginScreen";
 import { Layers, Scale, Sparkles, ShoppingBag, LogOut, User, Shield } from "lucide-react";
-import logoSVG from "@/assets/logo.svg";
+import appLogo from "@/assets/logo-sd.png";
 import bannerSVG from "@/assets/banner.svg";
 
 const queryClient = new QueryClient({
@@ -54,11 +54,11 @@ const SDComparativoApp: React.FC = () => {
       <header className="flex-shrink-0 z-50 border-b border-amber-500/20 bg-slate-900/95 backdrop-blur-md px-3.5 sm:px-6 py-2.5 shadow-lg">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
 
-          {/* Logo & Branding */}
+          {/* Logo & Branding com Ícone 3D Oficial */}
           <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
             <div className="relative group shrink-0">
-              <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl overflow-hidden border border-amber-500/40 bg-slate-900 flex items-center justify-center shadow-inner group-hover:border-amber-400 transition-colors">
-                <img src={logoSVG} alt="SDcomparativo Logo" className="w-full h-full object-cover" />
+              <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl overflow-hidden border border-amber-500/50 bg-black flex items-center justify-center shadow-lg shadow-amber-500/20 group-hover:border-amber-400 transition-all">
+                <img src={appLogo} alt="SDcomparativo Logo" className="w-full h-full object-cover" />
               </div>
               <span className="absolute -bottom-0.5 -right-0.5 flex h-2.5 w-2.5">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
