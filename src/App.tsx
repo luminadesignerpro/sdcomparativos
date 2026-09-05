@@ -55,9 +55,9 @@ const SDComparativoApp: React.FC = () => {
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
 
           {/* Logo & Branding */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
             <div className="relative group shrink-0">
-              <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl overflow-hidden border border-amber-500/40 bg-slate-900 flex items-center justify-center shadow-inner group-hover:border-amber-400 transition-colors">
+              <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl overflow-hidden border border-amber-500/40 bg-slate-900 flex items-center justify-center shadow-inner group-hover:border-amber-400 transition-colors">
                 <img src={logoSVG} alt="SDcomparativo Logo" className="w-full h-full object-cover" />
               </div>
               <span className="absolute -bottom-0.5 -right-0.5 flex h-2.5 w-2.5">
@@ -66,36 +66,36 @@ const SDComparativoApp: React.FC = () => {
               </span>
             </div>
 
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-base sm:text-lg font-black tracking-tight bg-gradient-to-r from-amber-400 via-amber-200 to-amber-500 bg-clip-text text-transparent">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <h1 className="text-sm sm:text-lg font-black tracking-tight bg-gradient-to-r from-amber-400 via-amber-200 to-amber-500 bg-clip-text text-transparent truncate">
                   SDcomparativo
                 </h1>
-                <span className="text-[9px] uppercase font-black tracking-wider px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                <span className="text-[9px] uppercase font-black tracking-wider px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 shrink-0">
                   v1.0 Pro
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400 truncate max-w-[280px] sm:max-w-md">
+              <p className="text-[10px] sm:text-[11px] text-slate-400 truncate hidden md:block">
                 Comparador Inteligente de Preços &amp; Gestão de Fornecedores
               </p>
             </div>
           </div>
 
-          {/* Ações do Usuário & Logout */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/60 text-xs text-slate-300">
-              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <User className="w-3.5 h-3.5 text-amber-400" />
-              <span className="font-semibold text-white truncate max-w-[120px]">{currentUser}</span>
+          {/* Ações do Usuário & Logout — 100% visível em mobile e desktop */}
+          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+            <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/60 text-xs text-slate-300">
+              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+              <User className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              <span className="font-semibold text-white truncate max-w-[80px] sm:max-w-[120px]">{currentUser}</span>
             </div>
 
             <button
               onClick={handleLogout}
               title="Sair do Sistema"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/30 text-xs font-semibold transition-colors duration-150 cursor-pointer"
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 text-red-400 hover:text-red-300 border border-red-500/40 text-xs font-bold transition-all duration-150 cursor-pointer shadow-sm active:scale-95 shrink-0"
             >
-              <LogOut className="w-3.5 h-3.5" />
-              <span className="hidden xs:inline">Sair</span>
+              <LogOut className="w-3.5 h-3.5 shrink-0" />
+              <span className="font-bold">Sair</span>
             </button>
           </div>
         </div>
