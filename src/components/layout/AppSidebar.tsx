@@ -22,8 +22,8 @@ const EmployeeMobileMenu = ({ view, setView, setAuthState }) => {
     return (
         <aside className="flex flex-col items-center min-h-screen w-full relative z-10" style={{ background: 'linear-gradient(180deg, hsl(var(--sidebar-background) / 0.97) 0%, hsl(var(--sidebar-background)) 100%)' }}>
             <div className="flex flex-col items-center pt-6 pb-4 w-full px-4">
-                <img src={logoSD} alt="SD Moveis" className="w-16 h-16 rounded-2xl border-2 border-primary shadow-lg object-cover mb-2" />
-                <p className="text-[11px] text-muted-foreground font-semibold tracking-widest uppercase">SD Moveis Projetados</p>
+                <img src={logoSD} alt="SDcomparativos" className="w-16 h-16 rounded-2xl border-2 border-primary shadow-lg object-cover mb-2" />
+                <p className="text-[11px] text-muted-foreground font-semibold tracking-widest uppercase">SDcomparativos</p>
             </div>
             <nav className="flex flex-col gap-3 w-full px-3 flex-1">
                 {items.map(({ icon: Icon, label, sub, mode, color }) => (
