@@ -541,16 +541,28 @@ const SuppliersPage: React.FC = () => {
   const [clientFolders, setClientFolders] = useState<ClientFolder[]>(() => {
     const saved = localStorage.getItem('sd_client_folders_v1');
     return saved ? JSON.parse(saved) : [
-      { id: 'f_samuel', name: 'SAMUEL', createdAt: new Date().toISOString(), status: 'Pronto para Comprar', notes: 'Lista criada via descrição' }
+      { id: 'f_davi', name: 'DAVI', createdAt: new Date().toISOString(), status: 'Pronto para Comprar', notes: 'Pasta principal' },
+      { id: 'f_samuel', name: 'SAMUEL DAVID', createdAt: new Date().toISOString(), status: 'Pronto para Comprar', notes: 'Lista criada via descrição' }
     ];
   });
   const [selectedClientFolderId, setSelectedClientFolderId] = useState<string>(() => {
-    return localStorage.getItem('sd_selected_folder_id') || 'all';
+    const saved = localStorage.getItem('sd_selected_folder_id');
+    if (saved && saved !== 'all') return saved;
+    return 'f_davi';
   });
 
   useEffect(() => {
     localStorage.setItem('sd_selected_folder_id', selectedClientFolderId);
   }, [selectedClientFolderId]);
+
+  // Garante que a pasta selecionada sempre aponte para uma pasta válida existente
+  useEffect(() => {
+    if (clientFolders.length > 0) {
+      if (!selectedClientFolderId || selectedClientFolderId === 'all' || !clientFolders.some(f => f.id === selectedClientFolderId)) {
+        setSelectedClientFolderId(clientFolders[0].id);
+      }
+    }
+  }, [clientFolders, selectedClientFolderId]);
 
   const [showClientFolderModal, setShowClientFolderModal] = useState(false);
   const [showFolderDropdown, setShowFolderDropdown] = useState(false);
@@ -2489,8 +2501,7 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
 
             {/* SELETOR DE PASTAS / CLIENTES */}
             {(() => {
-              const currentFolder = clientFolders.find(f => f.id === selectedClientFolderId);
-              const folderLabel = currentFolder ? currentFolder.name : `Pastas (${clientFolders.length})`;
+              const currentFolder = clientFolders.find(f => f.id === selectedClientFolderId) || clientFolders[0];
 
               return (
                 <div className="relative shrink-0">
@@ -2499,19 +2510,35 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
                       ? 'bg-amber-500/20 border-amber-500 text-amber-300 ring-1 ring-amber-500/40 shadow-amber-500/10 font-black'
                       : 'bg-white/5 border-white/10 text-gray-300 hover:text-white hover:border-amber-500/40'
                   }`}>
+                    {/* Botão de Navegação Direta: 1 CLIQUE ACESSA DIRETAMENTE A PASTA SELECIONADA */}
                     <button
                       onClick={() => {
+                        if (currentFolder && selectedClientFolderId !== currentFolder.id) {
+                          setSelectedClientFolderId(currentFolder.id);
+                        }
                         setActiveTab('material_list');
-                        setShowFolderDropdown(prev => !prev);
+                        setShowFolderDropdown(false);
                       }}
                       className="px-3.5 py-1.5 font-black text-xs flex items-center gap-2 cursor-pointer hover:text-amber-300 transition-colors"
-                      title="Abrir módulo de pastas e ver clientes"
+                      title={currentFolder ? `Acessar pasta ${currentFolder.name}` : "Abrir pasta selecionada"}
                     >
                       <Folder className="w-4 h-4 text-amber-400 shrink-0" />
                       <span className="font-extrabold text-white text-xs max-w-[150px] sm:max-w-[220px] truncate">
-                        {currentFolder ? `📁 ${currentFolder.name}` : `Pastas (${clientFolders.length})`}
+                        {currentFolder ? currentFolder.name : `Pastas (${clientFolders.length})`}
                       </span>
-                      <ChevronDown className={`w-3.5 h-3.5 text-amber-400 transition-transform duration-200 ${showFolderDropdown ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {/* Botão Dropdown Chevron: Apenas abre a lista de escolha se clicar na setinha */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowFolderDropdown(prev => !prev);
+                      }}
+                      className="pr-2.5 pl-1 py-1.5 text-amber-400 hover:text-amber-300 transition-colors cursor-pointer"
+                      title="Ver outras pastas"
+                    >
+                      <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showFolderDropdown ? 'rotate-180' : ''}`} />
                     </button>
                   </div>
 
