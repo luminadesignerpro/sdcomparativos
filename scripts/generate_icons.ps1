@@ -1,8 +1,8 @@
 Add-Type -AssemblyName System.Drawing
 
-$srcPath = "C:\Users\User\.gemini\antigravity-ide\brain\b7b9629f-1a1e-4f88-918d-9d49c457030b\.user_uploaded\media_1788620148319.jpg"
+$srcPath = "C:\Users\User\.gemini\antigravity-ide\brain\b7b9629f-1a1e-4f88-918d-9d49c457030b\.user_uploaded\media_1788624203438.jpg"
 if (-not (Test-Path $srcPath)) {
-    $srcPath = "C:\Users\User\.gemini\antigravity-ide\brain\b7b9629f-1a1e-4f88-918d-9d49c457030b\.user_uploaded\media_1788617882540.jpg"
+    $srcPath = "C:\Users\User\.gemini\antigravity-ide\brain\b7b9629f-1a1e-4f88-918d-9d49c457030b\.user_uploaded\media_1788620148319.jpg"
 }
 
 Write-Output "Using source image: $srcPath"
@@ -34,7 +34,8 @@ function Resize-And-Save($destPath, $width, $height, $format) {
 $png = [System.Drawing.Imaging.ImageFormat]::Png
 $jpeg = [System.Drawing.Imaging.ImageFormat]::Jpeg
 
-# Public icons
+# === 1. sdcomparativos ===
+Write-Output "--- Generating icons for sdcomparativos ---"
 Resize-And-Save "public\icon-512x512.png" 512 512 $png
 Resize-And-Save "public\icon-512.png" 512 512 $png
 Resize-And-Save "public\icon-maskable-512x512.png" 512 512 $png
@@ -58,6 +59,21 @@ Resize-And-Save "src\assets\logo-sd.png" 512 512 $png
 Resize-And-Save "src\assets\logo-sd.jpeg" 512 512 $jpeg
 Resize-And-Save "src\assets\logo.png" 512 512 $png
 Resize-And-Save "src\assets\logo.jpeg" 512 512 $jpeg
+
+# === 2. SDfinanceiro-1 (if present on Desktop) ===
+$sdfPath = "C:\Users\User\Desktop\SDfinanceiro-1"
+if (Test-Path $sdfPath) {
+    Write-Output "--- Generating icons for SDfinanceiro-1 ---"
+    Resize-And-Save "$sdfPath\assets\icon-512.png" 512 512 $png
+    Resize-And-Save "$sdfPath\assets\icon-384.png" 384 384 $png
+    Resize-And-Save "$sdfPath\assets\icon-192.png" 192 192 $png
+    Resize-And-Save "$sdfPath\assets\icon-152.png" 152 152 $png
+    Resize-And-Save "$sdfPath\assets\icon-144.png" 144 144 $png
+    Resize-And-Save "$sdfPath\assets\icon-128.png" 128 128 $png
+    Resize-And-Save "$sdfPath\assets\icon-96.png" 96 96 $png
+    Resize-And-Save "$sdfPath\assets\icon-72.png" 72 72 $png
+    Resize-And-Save "$sdfPath\assets\logo.jpg" 512 512 $jpeg
+}
 
 $srcImg.Dispose()
 Write-Output "All icons generated successfully!"

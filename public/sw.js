@@ -1,7 +1,7 @@
 // Service Worker — SDcomparativos
 // Cache básico "app shell" + estratégia network-first com fallback para cache (funciona offline)
 
-const CACHE_NAME = "sd-comparativos-cache-v6";
+const CACHE_NAME = "sd-comparativos-cache-v7";
 const APP_SHELL = [
   "/",
   "/index.html",
