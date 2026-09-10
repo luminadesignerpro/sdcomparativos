@@ -10,12 +10,13 @@ import {
   Printer, ShoppingCart, CheckSquare, Sparkles, Camera, Eye, X, Loader2,
   FileText, ExternalLink, Check, Download, User, PenLine, Pencil,
   Folder, FolderPlus, FolderOpen, FolderCheck, LayoutGrid, List,
-  MessageCircle, Send, Percent, ChevronDown, Scissors, Layout
+  MessageCircle, Send, Percent, ChevronDown, Scissors, Layout, Settings, RefreshCw, Cloud
 } from 'lucide-react';
 import { CuttingPlanModule } from './CuttingPlanModule';
 import { AntigravityAIStudio } from './AntigravityAIStudio';
 import { GeminiAIModule } from './GeminiAIModule';
 import { ClaudeAIModule } from './ClaudeAIModule';
+import { initCloudSync, pushCloudState, fetchCloudState, CloudStatePayload } from '@/services/cloudSyncService';
 
 declare global {
   interface Window {
@@ -90,32 +91,7 @@ interface BatchImportItem {
   quantity: number;
 }
 
-const DEFAULT_COMPARISONS: ProductComparison[] = [
-  {
-    id: '1',
-    productName: 'Chapa MDF 15mm Branco TX 2,75x1,85m',
-    category: 'MDF/MDP',
-    unit: 'Chapa',
-    description: 'MDF melamínico de alta densidade 15mm com revestimento Texturizado Branco.',
-    quotes: [
-      { supplierId: 's1', supplierName: 'Leo Madeiras', brand: 'Duratex', pricePerM2: 39.00, unitPrice: 198.50, price: 198.50, updatedAt: '2026-08-16', specifications: 'Chapa inteira. Entrega em até 2 dias.' },
-      { supplierId: 's2', supplierName: 'Gmad', brand: 'Arauco', pricePerM2: 43.00, unitPrice: 219.00, price: 219.00, updatedAt: '2026-08-15', specifications: 'Melamina resistente a riscos.' },
-      { supplierId: 's3', supplierName: 'Eucatex Distribuidora', brand: 'Eucatex', pricePerM2: 41.20, unitPrice: 210.00, price: 210.00, updatedAt: '2026-08-14' },
-    ]
-  },
-  {
-    id: '2',
-    productName: 'Dobradiça 35mm Curva c/ Amortecedor',
-    category: 'Ferragens',
-    unit: 'Par',
-    description: 'Dobradiça caneco 35mm pistão de amortecimento soft-close.',
-    quotes: [
-      { supplierId: 's1', supplierName: 'Gmad', brand: 'FGV TN', pricePerM2: null, unitPrice: 6.90, price: 6.90, updatedAt: '2026-08-16', specifications: 'Acompanha calço 4 furos e parafusos.' },
-      { supplierId: 's2', supplierName: 'FGV Central', brand: 'FGV TN', pricePerM2: null, unitPrice: 7.20, price: 7.20, updatedAt: '2026-08-10' },
-      { supplierId: 's3', supplierName: 'Leo Madeiras', brand: 'Häfele', pricePerM2: null, unitPrice: 8.50, price: 8.50, updatedAt: '2026-08-15' },
-    ]
-  }
-];
+const DEFAULT_COMPARISONS: ProductComparison[] = [];
 
 // ─── Modal Isolado para Digitação Rápida sem Lag ──────────────────────────
 interface TextImportModalProps {
@@ -494,8 +470,12 @@ const SuppliersPage: React.FC = () => {
 
   // Comparisons state
   const [comparisons, setComparisons] = useState<ProductComparison[]>(() => {
-    const saved = localStorage.getItem('sd_supplier_comparisons_v3');
-    return saved ? JSON.parse(saved) : DEFAULT_COMPARISONS;
+    try {
+      const saved = localStorage.getItem('sd_supplier_comparisons_v3');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
   });
   const [compSearch, setCompSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('Todos');
@@ -561,16 +541,28 @@ const SuppliersPage: React.FC = () => {
   const [clientFolders, setClientFolders] = useState<ClientFolder[]>(() => {
     const saved = localStorage.getItem('sd_client_folders_v1');
     return saved ? JSON.parse(saved) : [
-      { id: 'f_samuel', name: 'SAMUEL', createdAt: new Date().toISOString(), status: 'Pronto para Comprar', notes: 'Lista criada via descrição' }
+      { id: 'f_davi', name: 'DAVI', createdAt: new Date().toISOString(), status: 'Pronto para Comprar', notes: 'Pasta principal' },
+      { id: 'f_samuel', name: 'SAMUEL DAVID', createdAt: new Date().toISOString(), status: 'Pronto para Comprar', notes: 'Lista criada via descrição' }
     ];
   });
   const [selectedClientFolderId, setSelectedClientFolderId] = useState<string>(() => {
-    return localStorage.getItem('sd_selected_folder_id') || 'all';
+    const saved = localStorage.getItem('sd_selected_folder_id');
+    if (saved && saved !== 'all') return saved;
+    return 'f_davi';
   });
 
   useEffect(() => {
     localStorage.setItem('sd_selected_folder_id', selectedClientFolderId);
   }, [selectedClientFolderId]);
+
+  // Garante que a pasta selecionada sempre aponte para uma pasta válida existente
+  useEffect(() => {
+    if (clientFolders.length > 0) {
+      if (!selectedClientFolderId || selectedClientFolderId === 'all' || !clientFolders.some(f => f.id === selectedClientFolderId)) {
+        setSelectedClientFolderId(clientFolders[0].id);
+      }
+    }
+  }, [clientFolders, selectedClientFolderId]);
 
   const [showClientFolderModal, setShowClientFolderModal] = useState(false);
   const [showFolderDropdown, setShowFolderDropdown] = useState(false);
@@ -636,18 +628,75 @@ const SuppliersPage: React.FC = () => {
     customClientName: ''
   });
 
+  const [isCloudSyncing, setIsCloudSyncing] = useState(false);
+
+  // ─── SINCRONIZAÇÃO EM TEMPO REAL ENTRE CELULAR E COMPUTADOR ─────────────
   useEffect(() => {
-    localStorage.setItem('sd_supplier_comparisons_v3', JSON.stringify(comparisons));
+    // 1. Inicializa o canal Realtime do Supabase
+    const cleanup = initCloudSync((cloudData) => {
+      if (cloudData.comparisons && Array.isArray(cloudData.comparisons)) {
+        setComparisons(cloudData.comparisons);
+      }
+      if (cloudData.clientFolders && Array.isArray(cloudData.clientFolders)) {
+        setClientFolders(cloudData.clientFolders);
+      }
+      if (cloudData.materialList && Array.isArray(cloudData.materialList)) {
+        setMaterialList(cloudData.materialList);
+      }
+      if (cloudData.suppliers && Array.isArray(cloudData.suppliers) && cloudData.suppliers.length > 0) {
+        setSuppliers(cloudData.suppliers);
+      }
+    });
+
+    // 2. Ao focar na janela ou voltar para a aba no Computador/Celular, busca os dados atualizados
+    const handleRefreshOnFocus = async () => {
+      setIsCloudSyncing(true);
+      await fetchCloudState();
+      setIsCloudSyncing(false);
+    };
+
+    window.addEventListener('focus', handleRefreshOnFocus);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) handleRefreshOnFocus();
+    });
+
+    // 3. Busca inicial ao carregar a página
+    fetchCloudState().finally(() => setLoading(false));
+
+    return () => {
+      cleanup();
+      window.removeEventListener('focus', handleRefreshOnFocus);
+    };
+  }, []);
+
+  // Transmite e salva na Nuvem qualquer alteração em Comparações
+  useEffect(() => {
+    pushCloudState({ comparisons });
   }, [comparisons]);
 
+  // Transmite e salva na Nuvem qualquer alteração em Pastas de Clientes
   useEffect(() => {
-    localStorage.setItem('sd_material_list_v1', JSON.stringify(materialList));
+    pushCloudState({ clientFolders });
+  }, [clientFolders]);
+
+  // Transmite e salva na Nuvem qualquer alteração na Lista de Materiais
+  useEffect(() => {
+    pushCloudState({ materialList });
   }, [materialList]);
+
+  // Transmite e salva na Nuvem qualquer alteração em Fornecedores
+  useEffect(() => {
+    if (suppliers.length > 0) {
+      pushCloudState({ suppliers });
+    }
+  }, [suppliers]);
 
   const fetchSuppliers = async () => {
     setLoading(true);
     const { data } = await db.from('suppliers').select('*').eq('active', true).order('name');
-    setSuppliers(data || []);
+    if (data && data.length > 0) {
+      setSuppliers(data);
+    }
     setLoading(false);
   };
 
@@ -696,6 +745,30 @@ const SuppliersPage: React.FC = () => {
       return prev;
     });
   }, []);
+
+  // Excluir todos os produtos do sistema
+  const handleClearAllProducts = () => {
+    if (window.confirm('⚠️ Tem certeza que deseja excluir TODOS os produtos e cotações cadastrados no sistema? Esta ação limpará o comparativo por completo.')) {
+      setComparisons([]);
+      localStorage.setItem('sd_supplier_comparisons_v3', JSON.stringify([]));
+      toast({ title: '🗑️ Todos os produtos foram excluídos com sucesso!' });
+    }
+  };
+
+  // Excluir todas as cotações de um fornecedor específico
+  const handleClearSupplierProducts = (supplierName: string) => {
+    if (window.confirm(`⚠️ Deseja excluir todas as cotações do fornecedor "${supplierName}"?`)) {
+      setComparisons(prev => {
+        const updated = prev.map(c => ({
+          ...c,
+          quotes: c.quotes.filter(q => q.supplierName.toLowerCase() !== supplierName.toLowerCase())
+        })).filter(c => c.quotes.length > 0);
+        localStorage.setItem('sd_supplier_comparisons_v3', JSON.stringify(updated));
+        return updated;
+      });
+      toast({ title: `🗑️ Todas as cotações de ${supplierName} foram excluídas!` });
+    }
+  };
 
   
 
@@ -1367,16 +1440,26 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
     toast({ title: isAll ? '💰 Cotação salva em TODOS os fornecedores!' : `💰 Cotação salva para ${sName}!` });
   };
 
-  const handleDeleteQuote = (prodId: string, supplierName: string) => {
+  const handleDeleteQuote = (prodId: string, supplierNameOrId: string) => {
+    const cleanTarget = (supplierNameOrId || '').trim().toLowerCase();
     setComparisons(prev => {
       const updated = prev.map(p => {
         if (p.id !== prodId) return p;
-        return { ...p, quotes: p.quotes.filter(q => q.supplierName !== supplierName) };
+        const filteredQuotes = (p.quotes || []).filter(q => {
+          const qName = (q.supplierName || '').trim().toLowerCase();
+          const qId = (q.supplierId || '').trim().toLowerCase();
+          const matches = qName === cleanTarget || qId === cleanTarget || (cleanTarget && qName.includes(cleanTarget)) || (cleanTarget && cleanTarget.includes(qName));
+          return !matches;
+        });
+        return { ...p, quotes: filteredQuotes };
+      }).filter(p => {
+        // Se o produto não tiver mais nenhuma cotação, remove o produto
+        return p.quotes && p.quotes.length > 0;
       });
       localStorage.setItem('sd_supplier_comparisons_v3', JSON.stringify(updated));
       return updated;
     });
-    toast({ title: '🗑️ Cotação removida' });
+    toast({ title: '🗑️ Cotação / Produto excluído com sucesso!' });
   };
 
   // Material List Handlers
@@ -2215,11 +2298,28 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
       msg += `_Favor nos informar os valores unitários disponíveis!_`;
     }
 
-    // Fallback para Desktop (Chrome / Windows):
-    // 1. Salva/Baixa o PDF no computador
+    // 1. Tentar Compartilhamento Nativo com o arquivo PDF anexado diretamente (Mobile / PWA / Web Share API)
+    if (typeof navigator !== 'undefined' && navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+      try {
+        await navigator.share({
+          title: fileName,
+          files: [pdfFile]
+        });
+        toast({ 
+          title: `✅ PDF Enviado com Sucesso!`, 
+          description: `O arquivo "${fileName}" foi enviado para o WhatsApp.` 
+        });
+        return;
+      } catch (err: any) {
+        if (err.name === 'AbortError') return;
+      }
+    }
+
+    // 2. Fallback para Desktop (Chrome / Windows):
+    // Salva/Baixa o PDF no computador
     doc.save(fileName);
 
-    // 2. Abre a conversa no WhatsApp Web com a mensagem pronta
+    // Abre a conversa no WhatsApp Web pronta apenas para envio do PDF (sem mensagem de texto)
     const matchingSupplier = targetSupplierName ? suppliers.find(s => s.name.toLowerCase() === targetSupplierName.toLowerCase()) : null;
     let rawPhone = matchingSupplier?.phone || activeFolder?.phone || '';
     let cleanPhone = rawPhone.replace(/\D/g, '');
@@ -2228,13 +2328,13 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
     }
 
     const waUrl = cleanPhone 
-      ? `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(msg)}`
-      : `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+      ? `https://api.whatsapp.com/send?phone=${cleanPhone}`
+      : `https://api.whatsapp.com/send`;
 
     window.open(waUrl, '_blank');
     toast({ 
-      title: `📄 PDF do Pedido Gerado e Baixado com Sucesso!`, 
-      description: `O arquivo "${fileName}" foi salvo nos seus Downloads. O WhatsApp foi aberto pronto para você anexar o PDF!` 
+      title: `📄 PDF do Pedido Gerado e Baixado!`, 
+      description: `O arquivo "${fileName}" foi salvo nos seus Downloads. Arraste-o para o WhatsApp aberto!` 
     });
   };
 
@@ -2380,24 +2480,298 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
         </div>
       )}
 
-      {/* ══ BARRA FIXA DE NAVEGAÇÃO & AÇÕES (NUNCA ROLA) ══ */}
-      <div className="flex-shrink-0 z-30 bg-[#0d0f12] px-4 sm:px-6 py-2.5 border-b border-white/10 shadow-lg flex flex-col lg:flex-row gap-2 justify-between items-start lg:items-center">
-        <div className="flex items-center gap-2 flex-wrap">
+      {/* ══ BARRA FIXA DE NAVEGAÇÃO & AÇÕES (PADRONIZADA & MOBILE-FRIENDLY) ══ */}
+      <div className="flex-shrink-0 z-30 bg-[#0d0f12] px-3 sm:px-6 py-2 border-b border-white/10 shadow-lg space-y-2">
+        
+        {/* LINHA 1: MÓDULOS PRINCIPAIS & AÇÕES */}
+        <div className="flex items-center justify-between gap-2 overflow-x-auto pb-0.5 scrollbar-none">
+          <div className="flex items-center gap-1.5 shrink-0">
+            {/* COMPARATIVO GERAL */}
+            <button
+              onClick={() => setActiveTab('comparison')}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 font-bold text-xs rounded-xl transition-all shrink-0 shadow-sm ${
+                activeTab === 'comparison'
+                  ? 'bg-emerald-500 text-black shadow-md font-black'
+                  : 'bg-white/5 text-gray-300 hover:text-white border border-white/10 hover:bg-white/10'
+              }`}
+            >
+              <BarChart3 className="w-3.5 h-3.5" />
+              <span>Comparativo ({activeComparisons.length})</span>
+            </button>
+
+            {/* SELETOR DE PASTAS / CLIENTES */}
+            {(() => {
+              const currentFolder = clientFolders.find(f => f.id === selectedClientFolderId) || clientFolders[0];
+
+              return (
+                <div className="relative shrink-0">
+                  <div className={`flex items-center rounded-xl border transition-all shadow-sm ${
+                    activeTab === 'material_list'
+                      ? 'bg-amber-500/20 border-amber-500 text-amber-300 ring-1 ring-amber-500/40 shadow-amber-500/10 font-black'
+                      : 'bg-white/5 border-white/10 text-gray-300 hover:text-white hover:border-amber-500/40'
+                  }`}>
+                    {/* Botão de Navegação Direta: 1 CLIQUE ACESSA DIRETAMENTE A PASTA SELECIONADA */}
+                    <button
+                      onClick={() => {
+                        if (currentFolder && selectedClientFolderId !== currentFolder.id) {
+                          setSelectedClientFolderId(currentFolder.id);
+                        }
+                        setActiveTab('material_list');
+                        setShowFolderDropdown(false);
+                      }}
+                      className="px-3.5 py-1.5 font-black text-xs flex items-center gap-2 cursor-pointer hover:text-amber-300 transition-colors"
+                      title={currentFolder ? `Acessar pasta ${currentFolder.name}` : "Abrir pasta selecionada"}
+                    >
+                      <Folder className="w-4 h-4 text-amber-400 shrink-0" />
+                      <span className="font-extrabold text-white text-xs max-w-[150px] sm:max-w-[220px] truncate">
+                        {currentFolder ? currentFolder.name : `Pastas (${clientFolders.length})`}
+                      </span>
+                    </button>
+
+                    {/* Botão Dropdown Chevron: Apenas abre a lista de escolha se clicar na setinha */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowFolderDropdown(prev => !prev);
+                      }}
+                      className="pr-2.5 pl-1 py-1.5 text-amber-400 hover:text-amber-300 transition-colors cursor-pointer"
+                      title="Ver outras pastas"
+                    >
+                      <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showFolderDropdown ? 'rotate-180' : ''}`} />
+                    </button>
+                  </div>
+
+                  {/* Backdrop ao abrir dropdown */}
+                  {showFolderDropdown && (
+                    <div 
+                      className="fixed inset-0 z-40 bg-black/30" 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowFolderDropdown(false);
+                      }} 
+                    />
+                  )}
+
+                  {/* Dropdown de Pastas de Clientes */}
+                  {showFolderDropdown && (
+                    <div 
+                      className="absolute top-full left-0 mt-2 w-72 sm:w-80 bg-[#12141a] border-2 border-amber-500/40 rounded-2xl p-2 shadow-2xl z-50 animate-in fade-in zoom-in-95 space-y-1.5 backdrop-blur-xl"
+                      style={{ boxShadow: '0 20px 40px -10px rgba(0,0,0,0.9), 0 0 25px rgba(245,158,11,0.25)' }}
+                    >
+                      <div className="px-2 py-1 text-[11px] font-black uppercase text-amber-400 tracking-wider flex items-center justify-between border-b border-white/10 pb-1.5">
+                        <span>📁 Pastas de Clientes</span>
+                        <span className="text-[10px] text-gray-400 font-normal">{clientFolders.length} cadastradas</span>
+                      </div>
+
+                      <div className="max-h-64 overflow-y-auto space-y-1 pr-1 scrollbar-thin scrollbar-thumb-white/20">
+                        {clientFolders.map(f => {
+                          const fItems = materialList.filter(m => m.clientFolderId === f.id || (m.clientName && m.clientName.toLowerCase() === f.name.toLowerCase()));
+                          const isSelected = selectedClientFolderId === f.id && activeTab === 'material_list';
+
+                          return (
+                            <button
+                              key={f.id}
+                              onClick={() => {
+                                setSelectedClientFolderId(f.id);
+                                setActiveTab('material_list');
+                                setShowFolderDropdown(false);
+                              }}
+                              className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition-all group cursor-pointer ${
+                                isSelected
+                                  ? 'bg-amber-500/25 text-amber-300 border border-amber-500/40 shadow-sm'
+                                  : 'text-gray-200 hover:bg-white/10 hover:text-white border border-transparent'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <Folder className={`w-4 h-4 shrink-0 ${isSelected ? 'text-amber-400' : 'text-gray-400 group-hover:text-amber-400'}`} />
+                                <div className="min-w-0">
+                                  <span className="block font-black text-white group-hover:text-amber-300 truncate text-xs">
+                                    {f.name}
+                                  </span>
+                                  <span className="block text-[10px] text-gray-400 font-normal">
+                                    {fItems.length} itens • {f.status || 'Pronto'}
+                                  </span>
+                                </div>
+                              </div>
+                              {isSelected ? (
+                                <span className="bg-amber-500 text-black text-[9px] font-black px-1.5 py-0.5 rounded uppercase shrink-0">Aberta</span>
+                              ) : (
+                                <span className="text-[11px] text-amber-400 opacity-0 group-hover:opacity-100 transition-opacity font-bold">Abrir ➔</span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <div className="border-t border-white/10 my-1 pt-1 space-y-1">
+                        <button
+                          onClick={() => {
+                            setSelectedClientFolderId('all');
+                            setActiveTab('material_list');
+                            setShowFolderDropdown(false);
+                          }}
+                          className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-between transition-all ${
+                            selectedClientFolderId === 'all' && activeTab === 'material_list'
+                              ? 'bg-white/10 text-white'
+                              : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                          }`}
+                        >
+                          <span>📂 Ver Todas as Pastas (Galeria)</span>
+                          {selectedClientFolderId === 'all' && activeTab === 'material_list' && <Check className="w-3.5 h-3.5 text-amber-400" />}
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setActiveTab('material_list');
+                            setEditingClientFolder(null);
+                            setClientFolderForm({ name: '', phone: '', notes: '', status: 'Pronto para Comprar' });
+                            setShowClientFolderModal(true);
+                            setShowFolderDropdown(false);
+                          }}
+                          className="w-full text-left px-3 py-2 rounded-xl text-xs font-black text-emerald-400 hover:bg-emerald-500/15 flex items-center gap-1.5 transition-all border border-emerald-500/30"
+                        >
+                          <Plus className="w-4 h-4 text-emerald-400" /> + Nova Pasta de Cliente
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+
+
+            {/* PLANO DE CORTE */}
+            <button
+              onClick={() => setActiveTab('cutting_plan')}
+              className={`px-3.5 py-1.5 font-bold text-xs rounded-xl flex items-center gap-1.5 transition-all cursor-pointer shrink-0 shadow-sm ${
+                activeTab === 'cutting_plan'
+                  ? 'bg-amber-500 text-black shadow-md ring-2 ring-amber-500/50 font-black'
+                  : 'bg-white/5 text-gray-300 hover:text-white border border-white/10 hover:border-amber-500/40'
+              }`}
+              title="Abrir Otimizador & Plano de Corte 2D"
+            >
+              <Scissors className={`w-3.5 h-3.5 ${activeTab === 'cutting_plan' ? 'text-black' : 'text-amber-400'}`} />
+              <span>Plano de Corte</span>
+            </button>
+
+            {/* SD IA */}
+            <button
+              onClick={() => setActiveTab('claude_ai')}
+              className={`px-3.5 py-1.5 font-bold text-xs rounded-xl flex items-center gap-1.5 transition-all cursor-pointer shrink-0 shadow-sm ${
+                activeTab === 'claude_ai'
+                  ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md font-black ring-2 ring-orange-400/50'
+                  : 'bg-gradient-to-r from-orange-950/40 to-amber-950/40 text-orange-300 hover:text-white border border-orange-500/40 hover:border-orange-400'
+              }`}
+              title="Abrir SD IA (Antigravity Studio)"
+            >
+              <Sparkles className={`w-3.5 h-3.5 ${activeTab === 'claude_ai' ? 'text-white' : 'text-orange-400'}`} />
+              <span>SD IA</span>
+            </button>
+
+            {/* ABA CONFIGURAÇÃO */}
+            <button
+              onClick={() => setActiveTab('configuration')}
+              className={`px-3.5 py-1.5 font-bold text-xs rounded-xl flex items-center gap-1.5 transition-all cursor-pointer shrink-0 shadow-sm ${
+                activeTab === 'configuration'
+                  ? 'bg-amber-500 text-black shadow-md ring-2 ring-amber-500/50 font-black'
+                  : 'bg-white/5 text-gray-300 hover:text-white border border-white/10 hover:border-amber-500/40'
+              }`}
+              title="Abrir Configurações e Ferramentas"
+            >
+              <Settings className={`w-3.5 h-3.5 ${activeTab === 'configuration' ? 'text-black' : 'text-amber-400'}`} />
+              <span>Configuração</span>
+            </button>
+
+            {/* ABAS CUSTOMIZADAS */}
+            {customMainTabs.map(t => (
+              <div key={t.id} className="relative group flex items-center shrink-0">
+                <button
+                  onClick={() => setActiveTab(t.id)}
+                  className={`px-3 py-1.5 font-bold text-xs rounded-xl flex items-center gap-1.5 transition-all cursor-pointer shadow-sm pr-6 ${
+                    activeTab === t.id
+                      ? 'bg-purple-600 text-white shadow-md font-black ring-2 ring-purple-400/50'
+                      : 'bg-white/5 text-gray-400 hover:text-white border border-white/10 hover:bg-white/10'
+                  }`}
+                >
+                  <Layout className={`w-3.5 h-3.5 ${activeTab === t.id ? 'text-white' : 'text-purple-400'}`} />
+                  <span>{t.name}</span>
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCustomMainTabs(prev => {
+                      const next = prev.filter(tab => tab.id !== t.id);
+                      localStorage.setItem('sd_custom_main_tabs', JSON.stringify(next));
+                      return next;
+                    });
+                    if (activeTab === t.id) setActiveTab('comparison');
+                  }}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-red-500/80 hover:bg-red-500 text-white flex items-center justify-center text-[9px] opacity-0 group-hover:opacity-100 transition-opacity"
+                  title={`Excluir aba ${t.name}`}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+
+          {/* AÇÕES DA DIREITA: SINCRONIZAR NUVEM & REAJUSTAR PREÇOS */}
+          <div className="shrink-0 flex items-center gap-2">
+            <button
+              onClick={async () => {
+                setIsCloudSyncing(true);
+                toast({ title: '☁️ Sincronizando com a Nuvem...' });
+                const res = await fetchCloudState();
+                setIsCloudSyncing(false);
+                if (res) {
+                  toast({ title: '✅ Sincronizado!', description: 'Todos os produtos e pastas foram atualizados com a nuvem.' });
+                } else {
+                  toast({ title: '☁️ Sistema em dia!', description: 'Você já está com a versão mais recente.' });
+                }
+              }}
+              className="bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 hover:text-sky-200 border border-sky-500/30 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm shrink-0"
+              title="Sincronizar dados entre Celular e Computador"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 text-sky-400 ${isCloudSyncing ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">Sincronizar Nuvem</span>
+              <span className="sm:hidden">Sincronizar</span>
+            </button>
+
+            <button
+              onClick={() => setShowPriceAdjustmentModal(true)}
+              className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 hover:text-amber-200 border border-amber-500/30 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm shrink-0"
+              title="Reajustar preços em porcentagem (%)"
+            >
+              <Percent className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline">Reajustar Preços (%)</span>
+              <span className="sm:hidden">Reajustar (%)</span>
+            </button>
+          </div>
+        </div>
+
+        {/* LINHA 2: FORNECEDORES (SCROLL HORIZONTAL COMPACTO) */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
+          <span className="text-[10px] uppercase font-black tracking-wider text-gray-500 shrink-0 mr-1 hidden sm:inline">
+            Fornecedores:
+          </span>
+
           {suppliers.map(s => (
-            <div key={s.id} className={`flex items-center rounded-xl border transition-all ${
+            <div key={s.id} className={`flex items-center rounded-xl border transition-all shrink-0 ${
               activeTab === `supplier_${s.id}`
-                ? 'bg-amber-500/20 border-amber-500 text-amber-400'
+                ? 'bg-amber-500/20 border-amber-500 text-amber-400 font-bold'
                 : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'
             }`}>
               <button
                 onClick={() => setActiveTab(`supplier_${s.id}`)}
-                className="pl-3 pr-1.5 py-1.5 font-bold text-xs flex items-center gap-1.5"
+                className="pl-2.5 pr-1.5 py-1 font-bold text-xs flex items-center gap-1"
               >
                 🏢 {s.name}
               </button>
               <button
                 onClick={e => { e.stopPropagation(); handleDeleteSupplier(s.id); }}
-                className="w-5 h-5 mr-1.5 flex items-center justify-center rounded-full text-gray-500 hover:bg-red-500/20 hover:text-red-400 transition-all text-[10px]"
+                className="w-4 h-4 mr-1 flex items-center justify-center rounded-full text-gray-500 hover:bg-red-500/20 hover:text-red-400 transition-all text-[9px]"
                 title={`Excluir fornecedor ${s.name}`}
               >
                 ✕
@@ -2408,23 +2782,23 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
           {!showQuickAddSupplier ? (
             <button
               onClick={() => setShowQuickAddSupplier(true)}
-              className="flex items-center gap-1 px-3 py-1.5 font-bold text-xs rounded-xl text-emerald-400 hover:bg-emerald-500/10 transition-all border border-emerald-500/30"
+              className="flex items-center gap-1 px-2.5 py-1 font-bold text-xs rounded-xl text-emerald-400 hover:bg-emerald-500/10 transition-all border border-emerald-500/30 shrink-0"
             >
               + Fornecedor
             </button>
           ) : (
-            <div className="flex items-center gap-1 bg-[#1a1a1a] p-1 rounded-xl border border-emerald-500/40">
+            <div className="flex items-center gap-1 bg-[#1a1a1a] p-0.5 rounded-xl border border-emerald-500/40 shrink-0">
               <input
                 autoFocus
                 value={quickAddSupplierName}
                 onChange={e => setQuickAddSupplierName(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') handleQuickAddSupplier(); if (e.key === 'Escape') { setShowQuickAddSupplier(false); setQuickAddSupplierName(''); } }}
                 placeholder="Nome..."
-                className="px-2 py-1 rounded-lg bg-black text-white text-xs placeholder-gray-500 focus:outline-none w-32"
+                className="px-2 py-0.5 rounded-lg bg-black text-white text-xs placeholder-gray-500 focus:outline-none w-28"
               />
               <button
                 onClick={handleQuickAddSupplier}
-                className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-2 py-1 rounded-lg text-[10px]"
+                className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-2 py-0.5 rounded-lg text-[10px]"
               >
                 OK
               </button>
@@ -2436,184 +2810,6 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
               </button>
             </div>
           )}
-
-          <button
-            onClick={() => setActiveTab('comparison')}
-            className={`flex items-center gap-2 px-4 py-2 font-bold text-xs rounded-xl transition-all ${
-              activeTab === 'comparison'
-                ? 'bg-emerald-500 text-black shadow-md'
-                : 'bg-white/5 text-gray-400 hover:text-white border border-white/10'
-            }`}
-          >
-            <BarChart3 className="w-3.5 h-3.5" />
-            📊 Comparativo ({activeComparisons.length})
-          </button>
-
-          {/* SELETOR DE PASTAS / CLIENTES DIRETAMENTE NA BARRA PRINCIPAL */}
-          {(() => {
-            const currentFolder = clientFolders.find(f => f.id === selectedClientFolderId);
-            const folderLabel = currentFolder ? `📁 ${currentFolder.name}` : '📂 Todas as Pastas';
-
-            return (
-              <div className="relative">
-                {/* Botão da Pasta: Clicar nele abre a pasta diretamente */}
-                <div className={`flex items-center rounded-xl border transition-all shadow-md ${
-                  activeTab === 'material_list'
-                    ? 'bg-amber-500/20 border-amber-500 text-amber-300 ring-2 ring-amber-500/30'
-                    : 'bg-white/5 border-white/10 text-gray-300 hover:text-white hover:border-amber-500/40'
-                }`}>
-                  <button
-                    onClick={() => {
-                      setActiveTab('material_list');
-                      setShowFolderDropdown(false);
-                    }}
-                    className="pl-3.5 pr-2 py-2 font-bold text-xs flex items-center gap-1.5 cursor-pointer hover:text-amber-300 transition-colors"
-                    title={`Abrir ${folderLabel}`}
-                  >
-                    <span>{folderLabel}</span>
-                  </button>
-
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowFolderDropdown(prev => !prev);
-                    }}
-                    className="pr-2.5 pl-1 py-2 text-amber-400 hover:text-amber-300 transition-colors"
-                    title="Ver todas as pastas de clientes"
-                  >
-                    <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showFolderDropdown ? 'rotate-180' : ''}`} />
-                  </button>
-                </div>
-
-                {/* Dropdown Menu com todas as pastas */}
-                {showFolderDropdown && (
-                  <div className="absolute top-full left-0 mt-1.5 w-60 bg-[#14171e] border border-amber-500/30 rounded-2xl p-1.5 shadow-2xl z-50 animate-in fade-in zoom-in-95 space-y-1">
-                    <button
-                      onClick={() => {
-                        setSelectedClientFolderId('all');
-                        setActiveTab('material_list');
-                        setShowFolderDropdown(false);
-                      }}
-                      className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-between transition-all ${
-                        selectedClientFolderId === 'all'
-                          ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                          : 'text-gray-300 hover:bg-white/5 hover:text-white'
-                      }`}
-                    >
-                      <span>📂 Todas as Pastas</span>
-                      {selectedClientFolderId === 'all' && <Check className="w-3.5 h-3.5 text-amber-400" />}
-                    </button>
-
-                    {clientFolders.map(f => (
-                      <button
-                        key={f.id}
-                        onClick={() => {
-                          setSelectedClientFolderId(f.id);
-                          setActiveTab('material_list');
-                          setShowFolderDropdown(false);
-                        }}
-                        className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-between transition-all ${
-                          selectedClientFolderId === f.id
-                            ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                            : 'text-gray-300 hover:bg-white/5 hover:text-white'
-                        }`}
-                      >
-                        <span className="truncate">📁 {f.name}</span>
-                        {selectedClientFolderId === f.id && <Check className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
-                      </button>
-                    ))}
-
-                    <div className="border-t border-white/10 my-1"></div>
-
-                    <button
-                      onClick={() => {
-                        setActiveTab('material_list');
-                        setEditingClientFolder(null);
-                        setClientFolderForm({ name: '', phone: '', notes: '', status: 'Pronto para Comprar' });
-                        setShowClientFolderModal(true);
-                        setShowFolderDropdown(false);
-                      }}
-                      className="w-full text-left px-3 py-2 rounded-xl text-xs font-black text-emerald-400 hover:bg-emerald-500/10 flex items-center gap-1.5 transition-all"
-                    >
-                      <Plus className="w-3.5 h-3.5" /> + Nova Pasta
-                    </button>
-                  </div>
-                )}
-              </div>
-            );
-          })()}
-
-          {/* BOTÃO DA ABA PLANO DE CORTE */}
-          <button
-            onClick={() => setActiveTab('cutting_plan')}
-            className={`px-3.5 py-2 font-bold text-xs rounded-xl flex items-center gap-1.5 transition-all cursor-pointer shadow-md ${
-              activeTab === 'cutting_plan'
-                ? 'bg-amber-500 text-black shadow-md ring-2 ring-amber-500/50 font-black'
-                : 'bg-white/5 text-gray-300 hover:text-white border border-white/10 hover:border-amber-500/40'
-            }`}
-            title="Abrir Otimizador & Plano de Corte 2D"
-          >
-            <Scissors className={`w-3.5 h-3.5 ${activeTab === 'cutting_plan' ? 'text-black' : 'text-amber-400'}`} />
-            <span>📐 Plano de Corte</span>
-          </button>
-
-          {/* BOTÃO DA ABA SD IA (Antigravity Studio) */}
-          <button
-            onClick={() => setActiveTab('claude_ai')}
-            className={`px-4 py-2 font-bold text-xs rounded-xl flex items-center gap-2 transition-all cursor-pointer shadow-md ${
-              activeTab === 'claude_ai'
-                ? 'bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 text-white shadow-[0_0_20px_rgba(249,115,22,0.6)] font-black ring-2 ring-orange-400/50 scale-[1.02]'
-                : 'bg-gradient-to-r from-orange-950/40 to-amber-950/40 text-orange-300 hover:text-white border border-orange-500/40 hover:border-orange-400'
-            }`}
-            title="Abrir SD IA (Antigravity AI Studio)"
-          >
-            <Sparkles className={`w-4 h-4 ${activeTab === 'claude_ai' ? 'text-white' : 'text-orange-400'}`} />
-            <span className="tracking-wide">✨ SD IA</span>
-          </button>
-          
-          {/* ABAS CUSTOMIZADAS COM BOTÃO DE EXCLUIR */}
-          {customMainTabs.map(t => (
-            <div key={t.id} className="relative group flex items-center">
-              <button
-                onClick={() => setActiveTab(t.id)}
-                className={`px-3.5 py-2 font-bold text-xs rounded-xl flex items-center gap-1.5 transition-all cursor-pointer shadow-md pr-7 ${
-                  activeTab === t.id
-                    ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-[0_0_20px_rgba(147,51,234,0.6)] font-black ring-2 ring-purple-400/50'
-                    : 'bg-white/5 text-gray-400 hover:text-white border border-white/10 hover:bg-white/10'
-                }`}
-              >
-                <Layout className={`w-3.5 h-3.5 ${activeTab === t.id ? 'text-white' : 'text-purple-400'}`} />
-                <span>{t.name}</span>
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setCustomMainTabs(prev => {
-                    const next = prev.filter(tab => tab.id !== t.id);
-                    localStorage.setItem('sd_custom_main_tabs', JSON.stringify(next));
-                    return next;
-                  });
-                  if (activeTab === t.id) setActiveTab('comparison');
-                }}
-                className="absolute right-1.5 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-red-500/80 hover:bg-red-500 text-white flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
-                title={`Excluir aba ${t.name}`}
-              >
-                ✕
-              </button>
-            </div>
-          ))}
-        </div>
-
-        {/* Ações da Aba Ativa no Topo Direito */}
-        <div className="flex items-center gap-2 flex-wrap shrink-0">
-          <button
-            onClick={() => setShowPriceAdjustmentModal(true)}
-            className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 hover:text-amber-200 border border-amber-500/30 px-3.5 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all shadow-sm hover:scale-[1.02]"
-            title="Reajustar preços em porcentagem (%) por categoria ou fornecedor"
-          >
-            <Percent className="w-3.5 h-3.5 text-amber-400" />
-            <span>Reajustar Preços (%)</span>
-          </button>
         </div>
       </div>
 
@@ -2671,26 +2867,26 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
           supplierProducts.sort((a, b) => a.productName.localeCompare(b.productName, 'pt-BR', { numeric: true }));
 
           return (
-            <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300">
-                  {/* Cabeçalho Executivo do Fornecedor */}
-                  <div className="bg-gradient-to-r from-[#14171d] via-[#111317] to-[#14171d] border border-white/10 p-5 rounded-3xl shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                    <div className="flex items-center gap-3.5">
-                      <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0 shadow-md">
-                        <Building className="w-6 h-6 text-amber-400" />
+            <div className="space-y-4 sm:space-y-6 animate-in fade-in zoom-in-95 duration-300">
+                  {/* Cabeçalho Executivo do Fornecedor (Padronizado e Compacto) */}
+                  <div className="bg-gradient-to-r from-[#14171d] via-[#111317] to-[#14171d] border border-white/10 p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-3 sm:gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0 shadow-md">
+                        <Building className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400" />
                       </div>
                       <div>
-                        <div className="flex items-center gap-2.5 flex-wrap">
-                          <h2 className="text-xl font-black text-white tracking-wide">
+                        <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
+                          <h2 className="text-lg sm:text-xl font-black text-white tracking-wide">
                             {currentSupplier.name}
                           </h2>
-                          <span className="bg-amber-500/15 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase">
+                          <span className="bg-amber-500/15 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-lg text-[10px] font-black uppercase">
                             {currentSupplier.category || 'Geral'}
                           </span>
-                          <span className="bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 rounded-lg text-[10px] font-bold">
+                          <span className="bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-lg text-[10px] font-bold">
                             {supplierProducts.length} {supplierProducts.length === 1 ? 'produto cotado' : 'produtos cotados'}
                           </span>
                         </div>
-                        <p className="text-gray-400 text-xs mt-1 flex items-center gap-3 flex-wrap">
+                        <p className="text-gray-400 text-[11px] sm:text-xs mt-0.5 sm:mt-1 flex items-center gap-2 sm:gap-3 flex-wrap">
                           {currentSupplier.cnpj && <span>CNPJ: {currentSupplier.cnpj}</span>}
                           {currentSupplier.phone && <span className="flex items-center gap-1 text-gray-300"><Phone className="w-3 h-3 text-amber-400" /> {currentSupplier.phone}</span>}
                           {currentSupplier.email && <span className="flex items-center gap-1 text-gray-300"><Mail className="w-3 h-3 text-amber-400" /> {currentSupplier.email}</span>}
@@ -2698,15 +2894,15 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
                       </div>
                     </div>
                     
-                    <div className="flex items-center gap-2 flex-wrap shrink-0">
+                    <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap w-full md:w-auto shrink-0">
                       <button 
                         onClick={() => {
                           setProdForm({ ...prodForm, supplierId: currentSupplier.id, supplierName: currentSupplier.name });
                           setShowProdForm(true);
                         }}
-                        className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-md transition-all hover:scale-[1.02]"
+                        className="flex-1 md:flex-none justify-center bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-md transition-all hover:scale-[1.02] active:scale-[0.98]"
                       >
-                        <Plus className="w-3.5 h-3.5" /> Adicionar Produto / Preço
+                        <Plus className="w-3.5 h-3.5" /> <span>+ Produto / Preço</span>
                       </button>
 
                       <button 
@@ -2714,11 +2910,21 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
                           setTextImportInput('');
                           setShowTextImportModal(true);
                         }}
-                        className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-md transition-all hover:scale-[1.02]"
+                        className="flex-1 md:flex-none justify-center bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-md transition-all hover:scale-[1.02] active:scale-[0.98]"
                         title="Importar lista ou orçamento por texto com IA"
                       >
-                        <Sparkles className="w-3.5 h-3.5" /> Importar Orçamento Rápido
+                        <Sparkles className="w-3.5 h-3.5" /> <span>Importar com IA</span>
                       </button>
+
+                      {supplierProducts.length > 0 && (
+                        <button 
+                          onClick={() => handleClearSupplierProducts(currentSupplier.name)}
+                          className="w-full md:w-auto justify-center bg-red-500/10 hover:bg-red-500/25 border border-red-500/30 text-red-300 font-bold px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow transition-all active:scale-[0.98]"
+                          title={`Excluir todos os produtos de ${currentSupplier.name}`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-red-400" /> <span>Limpar Fornecedor</span>
+                        </button>
+                      )}
 
                       <button 
                         onClick={() => {
@@ -2750,10 +2956,10 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
                           `;
                           printHtmlDocument(html);
                         }}
-                        className="bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow transition-all"
+                        className="w-full md:w-auto justify-center bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow transition-all active:scale-[0.98]"
                         title="Imprimir Tabela de Preços deste Fornecedor"
                       >
-                        <Printer className="w-3.5 h-3.5 text-emerald-400" /> Imprimir / PDF Tabela
+                        <Printer className="w-3.5 h-3.5 text-emerald-400" /> <span>Imprimir / PDF</span>
                       </button>
                     </div>
                   </div>
@@ -2895,122 +3101,50 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
 
       {/* ─── TAB 2: COMPARATIVO DE PREÇOS (PRODUTO MAIS BARATO) ───────────── */}
       {activeTab === 'comparison' && (
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
 
-          {/* Cabeçalho de Ações do Comparativo - Premium Glass Design */}
-          <div className="relative overflow-hidden bg-gradient-to-br from-slate-900/95 via-[#0e131b]/90 to-slate-900/95 border border-amber-500/20 backdrop-blur-xl p-6 rounded-3xl shadow-2xl flex flex-col xl:flex-row justify-between items-start xl:items-center gap-5">
-            <div className="absolute top-0 right-0 w-80 h-32 bg-amber-500/5 blur-3xl pointer-events-none rounded-full" />
-            <div className="absolute -bottom-10 left-10 w-48 h-20 bg-emerald-500/5 blur-2xl pointer-events-none rounded-full" />
-
-            <div className="flex items-center gap-4 relative z-10">
-              <div className="w-13 h-13 p-3 rounded-2xl bg-gradient-to-br from-amber-500/20 to-amber-500/5 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0 shadow-lg shadow-amber-500/10">
-                <BarChart3 className="w-7 h-7 text-amber-400 drop-shadow" />
-              </div>
-              <div>
-                <div className="flex items-center gap-3 flex-wrap">
-                  <h2 className="text-2xl font-black bg-gradient-to-r from-white via-slate-100 to-amber-200 bg-clip-text text-transparent tracking-tight">
-                    Comparativo Geral de Preços
-                  </h2>
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 shadow-inner">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                    {activeComparisons.length} Produtos com Cotação
-                  </span>
-                </div>
-                <p className="text-slate-400 text-xs mt-1 font-medium">
-                  Compare cotações de fornecedores cadastrados e compre direto pelo menor valor garantido
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2.5 flex-wrap shrink-0 relative z-10 w-full xl:w-auto justify-start xl:justify-end">
-              <button
-                onClick={() => setShowPriceAdjustmentModal(true)}
-                className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:border-amber-400/50 px-3.5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98]"
-                title="Reajustar preços em porcentagem (%) por categoria ou fornecedor"
-              >
-                <Percent className="w-4 h-4 text-amber-400" />
-                <span>Reajustar Preços (%)</span>
-              </button>
-
-              <button 
-                onClick={() => batchFileInputRef.current?.click()}
-                className="bg-purple-500/15 hover:bg-purple-500/25 text-purple-200 border border-purple-500/30 hover:border-purple-400/50 font-bold px-3.5 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98]"
-                title="Abrir PDF ou Tirar Foto do orçamento com leitura automática por IA"
-              >
-                <FileText className="w-4 h-4 text-purple-300" />
-                <span>Abrir PDF / Foto</span>
-              </button>
-
-              <button 
-                onClick={() => { setShowTextImportModal(true); setTextImportInput(''); }}
-                className="bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-200 border border-indigo-500/30 hover:border-indigo-400/50 font-bold px-3.5 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98]"
-                title="Descrever itens por texto com leitura automática por IA"
-              >
-                <PenLine className="w-4 h-4 text-indigo-300" />
-                <span>Descrever por Texto</span>
-              </button>
-
-              <button 
-                onClick={() => setShowProdForm(true)} 
-                className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Adicionar Produto</span>
-              </button>
-
-              <button
-                onClick={handleDeleteUncomparedProducts}
-                className="bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/25 hover:border-red-500/40 px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm"
-                title="Excluir permanentemente produtos que não possuem cotações comparativas entre fornecedores"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>Excluir sem Comparação</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Stats Header - High Tech Widgets */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="relative overflow-hidden bg-slate-900/80 border border-emerald-500/20 hover:border-emerald-500/40 p-5 rounded-3xl shadow-xl transition-all duration-300 hover:translate-y-[-2px] flex items-center gap-4 group">
+          {/* Stats Header - High Tech Widgets (Padronizado 3x1 no Mobile e Desktop) */}
+          <div className="grid grid-cols-3 gap-2 sm:gap-4">
+            <div className="relative overflow-hidden bg-slate-900/80 border border-emerald-500/20 hover:border-emerald-500/40 p-2.5 sm:p-5 rounded-xl sm:rounded-3xl shadow-lg sm:shadow-xl transition-all duration-300 flex items-center gap-2 sm:gap-4 group">
               <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/15 transition-colors pointer-events-none" />
-              <div className="w-13 h-13 p-3 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0 shadow-inner">
-                <ShoppingBag className="w-6 h-6" />
+              <div className="w-8 h-8 sm:w-13 sm:h-13 p-1.5 sm:p-3 rounded-lg sm:rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0 shadow-inner">
+                <ShoppingBag className="w-4 h-4 sm:w-6 sm:h-6" />
               </div>
-              <div>
-                <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Produtos Cotados</p>
-                <div className="flex items-baseline gap-2">
-                  <p className="text-3xl font-black text-white mt-0.5 tracking-tight">{totalProducts}</p>
-                  <span className="text-[11px] text-slate-500 font-medium">itens ativos</span>
+              <div className="min-w-0">
+                <p className="text-slate-400 text-[9px] sm:text-xs font-bold uppercase tracking-wider truncate">Produtos</p>
+                <div className="flex items-baseline gap-1 sm:gap-2">
+                  <p className="text-sm sm:text-3xl font-black text-white mt-0.5 tracking-tight">{totalProducts}</p>
+                  <span className="text-[9px] sm:text-[11px] text-slate-500 font-medium hidden sm:inline">itens ativos</span>
                 </div>
               </div>
             </div>
 
-            <div className="relative overflow-hidden bg-slate-900/80 border border-amber-500/20 hover:border-amber-500/40 p-5 rounded-3xl shadow-xl transition-all duration-300 hover:translate-y-[-2px] flex items-center gap-4 group">
+            <div className="relative overflow-hidden bg-slate-900/80 border border-amber-500/20 hover:border-amber-500/40 p-2.5 sm:p-5 rounded-xl sm:rounded-3xl shadow-lg sm:shadow-xl transition-all duration-300 flex items-center gap-2 sm:gap-4 group">
               <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/10 rounded-full blur-2xl group-hover:bg-amber-500/15 transition-colors pointer-events-none" />
-              <div className="w-13 h-13 p-3 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0 shadow-inner">
-                <TrendingDown className="w-6 h-6" />
+              <div className="w-8 h-8 sm:w-13 sm:h-13 p-1.5 sm:p-3 rounded-lg sm:rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0 shadow-inner">
+                <TrendingDown className="w-4 h-4 sm:w-6 sm:h-6" />
               </div>
-              <div>
-                <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Economia Potencial Total</p>
-                <p className="text-3xl font-black bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-400 bg-clip-text text-transparent mt-0.5 tracking-tight">
+              <div className="min-w-0">
+                <p className="text-slate-400 text-[9px] sm:text-xs font-bold uppercase tracking-wider truncate">Economia</p>
+                <p className="text-xs sm:text-3xl font-black bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-400 bg-clip-text text-transparent mt-0.5 tracking-tight truncate">
                   R$ {totalSavingsPotential.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
               </div>
             </div>
 
-            <div className="relative overflow-hidden bg-slate-900/80 border border-blue-500/20 hover:border-blue-500/40 p-5 rounded-3xl shadow-xl transition-all duration-300 hover:translate-y-[-2px] flex items-center gap-4 group">
+            <div className="relative overflow-hidden bg-slate-900/80 border border-blue-500/20 hover:border-blue-500/40 p-2.5 sm:p-5 rounded-xl sm:rounded-3xl shadow-lg sm:shadow-xl transition-all duration-300 flex items-center gap-2 sm:gap-4 group">
               <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-blue-500/15 transition-colors pointer-events-none" />
-              <div className="w-13 h-13 p-3 rounded-2xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0 shadow-inner">
-                <Award className="w-6 h-6" />
+              <div className="w-8 h-8 sm:w-13 sm:h-13 p-1.5 sm:p-3 rounded-lg sm:rounded-2xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0 shadow-inner">
+                <Award className="w-4 h-4 sm:w-6 sm:h-6" />
               </div>
               <div className="min-w-0">
-                <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Fornecedor Mais Competitivo</p>
-                <div className="flex items-center gap-2 flex-wrap mt-0.5">
-                  <span className="text-xl font-black text-amber-300 tracking-tight truncate max-w-[220px]">
+                <p className="text-slate-400 text-[9px] sm:text-xs font-bold uppercase tracking-wider truncate">Mais Barato</p>
+                <div className="flex items-center gap-1 sm:gap-2 flex-wrap mt-0.5">
+                  <span className="text-xs sm:text-xl font-black text-amber-300 tracking-tight truncate max-w-full">
                     {topSupplierName || 'Nenhum'}
                   </span>
                   {topSupplierWins > 0 && (
-                    <span className="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase bg-amber-500/20 text-amber-300 border border-amber-500/30 shrink-0">
+                    <span className="px-1.5 py-0.5 rounded-md text-[8px] sm:text-[10px] font-black uppercase bg-amber-500/20 text-amber-300 border border-amber-500/30 shrink-0 hidden sm:inline">
                       {topSupplierWins}x mais barato
                     </span>
                   )}
@@ -3113,7 +3247,7 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
               return (
                 <div 
                   key={item.id} 
-                  className="bg-[#121418] hover:bg-[#161a22] border border-white/10 hover:border-amber-500/40 transition-all rounded-2xl p-3.5 shadow-md flex flex-col xl:flex-row xl:items-center justify-between gap-3"
+                  className="bg-[#121418] hover:bg-[#161a22] border border-white/10 hover:border-amber-500/40 transition-all rounded-2xl p-2.5 sm:p-3.5 shadow-md flex flex-col xl:flex-row xl:items-center justify-between gap-2.5 sm:gap-3"
                 >
                   {/* 1. Coluna do Produto & Categoria */}
                   <div className="w-full xl:w-64 shrink-0 flex items-center gap-2.5 min-w-0">
@@ -3131,7 +3265,7 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
                   </div>
 
                   {/* 2. Grid de Cotações 100% Padronizadas com Nome em Destaque */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 flex-1 min-w-0">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-2.5 flex-1 min-w-0">
                     {sortedQuotes.map((q, idx) => {
                       const val = q.unitPrice || q.price || 0;
                       const isWinner = idx === 0;
@@ -3139,29 +3273,32 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
                       return (
                         <div
                           key={idx}
-                          className={`group relative flex flex-col justify-between p-2.5 rounded-2xl border transition-all duration-200 shadow-sm min-w-0 ${
+                          className={`group relative flex flex-col justify-between p-2 sm:p-2.5 rounded-2xl border transition-all duration-200 shadow-sm min-w-0 ${
                             isWinner
                               ? 'bg-gradient-to-br from-emerald-950/80 via-[#0a1f18] to-teal-950/80 border-emerald-500/60 text-emerald-300 shadow-emerald-500/10 ring-1 ring-emerald-500/30'
                               : 'bg-slate-900/90 border-white/10 text-slate-300 hover:border-slate-700 hover:bg-slate-850'
                           }`}
                         >
                           {/* Linha Superior: Nome do Fornecedor + Selo de Menor Preço */}
-                          <div className="flex items-center justify-between gap-1 w-full">
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              <span className="text-xs shrink-0">{isWinner ? '🥇' : '🏢'}</span>
-                              <span className="font-black text-white text-xs truncate uppercase tracking-wider">
+                          <div className="flex items-start justify-between gap-1 w-full min-w-0">
+                            <div className="flex items-start gap-1 min-w-0 flex-1">
+                              <span className="text-xs shrink-0 mt-0.5 select-none">{isWinner ? '🥇' : '🏢'}</span>
+                              <span 
+                                className="font-black text-white text-[11px] sm:text-xs uppercase tracking-tight leading-tight line-clamp-2 break-words"
+                                title={q.supplierName}
+                              >
                                 {q.supplierName}
                               </span>
                             </div>
                             
-                            <div className="flex items-center gap-1 shrink-0">
+                            <div className="flex items-center gap-1 shrink-0 ml-1">
                               {isWinner ? (
-                                <span className="bg-emerald-500 text-slate-950 text-[9px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-tight shadow-sm">
+                                <span className="bg-emerald-500 text-slate-950 text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-tight shadow-sm whitespace-nowrap">
                                   Menor
                                 </span>
                               ) : (
                                 diff > 0 && (
-                                  <span className="text-[10px] text-red-400 bg-red-500/10 border border-red-500/20 px-1.5 py-0.5 rounded-md font-semibold font-mono">
+                                  <span className="text-[9px] sm:text-[10px] text-red-400 bg-red-500/15 border border-red-500/25 px-1 py-0.5 rounded-md font-bold font-mono whitespace-nowrap">
                                     +R$ {Math.round(val - cheapestVal)}
                                   </span>
                                 )
@@ -3172,7 +3309,7 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
                                   e.stopPropagation();
                                   handleDeleteQuote(item.id, q.supplierName);
                                 }}
-                                className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-400 p-0.5 rounded transition-all"
+                                className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-400 p-0.5 rounded transition-all shrink-0"
                                 title="Remover cotação"
                               >
                                 <X className="w-3 h-3" />
@@ -3182,7 +3319,7 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
 
                           {/* Linha Inferior: Preço + Botão de Compra */}
                           <div className="flex items-center justify-between gap-1 mt-2 pt-1.5 border-t border-white/5">
-                            <span className={`font-black text-sm font-mono ${isWinner ? 'text-emerald-400 font-bold' : 'text-slate-100'}`}>
+                            <span className={`font-black text-xs sm:text-sm font-mono tracking-tight ${isWinner ? 'text-emerald-400 font-bold' : 'text-slate-100'}`}>
                               R$ {val.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                             </span>
 
@@ -3253,12 +3390,12 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
 
       {/* ─── TAB 3: LISTA DE MATERIAIS DA COMPRA (COM PASTAS DE CLIENTES) ──── */}
       {activeTab === 'material_list' && (() => {
-        const activeFolder = clientFolders.find(f => f.id === selectedClientFolderId);
+        const activeFolder = clientFolders.find(f => f.id === selectedClientFolderId) || clientFolders[0];
         
         const displayedList = materialList.filter(item => {
-          if (selectedClientFolderId === 'all') return true;
-          if (item.clientFolderId === selectedClientFolderId) return true;
-          if (activeFolder && item.clientName && item.clientName.toLowerCase() === activeFolder.name.toLowerCase()) return true;
+          if (!activeFolder) return false;
+          if (item.clientFolderId === activeFolder.id) return true;
+          if (item.clientName && item.clientName.toLowerCase() === activeFolder.name.toLowerCase()) return true;
           return false;
         });
 
@@ -3268,693 +3405,402 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
         return (
         <div className="space-y-4">
 
-          {/* ─── CARD MASTER UNIFICADO: PROJETO / CLIENTE + MÉTRICAS + AÇÕES POR FORNECEDOR ─── */}
-          {activeFolder && (
-            <div className="bg-gradient-to-br from-[#121418] via-[#101216] to-[#121418] border border-amber-500/30 p-5 rounded-3xl shadow-2xl space-y-4">
-              
-              {/* LINHA SUPERIOR: TÍTULO DA PASTA/PROJETO + AÇÕES GERAIS */}
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-white/10">
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-2xl bg-amber-500/15 border border-amber-500/35 flex items-center justify-center text-amber-400 shrink-0 shadow-md">
-                    <Folder className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h2 className="text-xl font-black text-white tracking-wide">
-                        {activeFolder.name}
-                      </h2>
-                      <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-lg border ${
-                        activeFolder.status === 'Comprado'
-                          ? 'bg-blue-500/20 text-blue-300 border-blue-500/30'
-                          : activeFolder.status === 'Em Cotação'
-                          ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
-                          : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-                      }`}>
-                        {activeFolder.status || 'Pronto para Comprar'}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3 text-[11px] text-gray-400 mt-0.5">
-                      {activeFolder.phone && <span>📞 {activeFolder.phone}</span>}
-                      {activeFolder.createdAt && (
-                        <span>📅 Criado em {new Date(activeFolder.createdAt).toLocaleDateString('pt-BR')}</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
+          {/* ─── LAYOUT DOIS PAINÉIS: LISTA DE PASTAS + CONTEÚDO ─── */}
+          <div className="flex flex-col lg:flex-row gap-4">
 
-                {/* Botões de Ação da Pasta */}
-                <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto flex-wrap">
+            {/* ═══ PAINEL ESQUERDO: LISTA DE PASTAS (EXPLORADOR) ═══ */}
+            <div className="lg:w-64 xl:w-72 shrink-0">
+              <div className="bg-[#0f1115] border border-white/10 rounded-2xl overflow-hidden shadow-xl sticky top-4">
+                {/* Header da lista */}
+                <div className="px-3.5 py-2.5 border-b border-white/10 bg-[#12141a] flex items-center justify-between">
+                  <span className="text-[11px] font-black uppercase text-amber-400 tracking-wider flex items-center gap-1.5">
+                    <Folder className="w-3.5 h-3.5" /> Pastas ({clientFolders.length})
+                  </span>
                   <button
                     onClick={() => {
-                      setEditingClientFolder(activeFolder);
-                      setClientFolderForm({
-                        name: activeFolder.name,
-                        phone: activeFolder.phone || '',
-                        notes: activeFolder.notes || '',
-                        status: activeFolder.status
-                      });
+                      setEditingClientFolder(null);
+                      setClientFolderForm({ name: '', phone: '', notes: '', status: 'Pronto para Comprar' });
                       setShowClientFolderModal(true);
                     }}
-                    className="bg-white/5 hover:bg-white/10 text-gray-300 hover:text-amber-300 border border-white/10 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all"
+                    className="bg-emerald-500/15 hover:bg-emerald-500/30 text-emerald-400 w-6 h-6 rounded-lg flex items-center justify-center transition-all cursor-pointer"
+                    title="Nova pasta de cliente"
                   >
-                    <Pencil className="w-3.5 h-3.5 text-amber-400" /> Editar Dados
-                  </button>
-
-                  <button
-                    onClick={() => setExportModal({ isOpen: true, targetSupplierName: undefined })}
-                    className="bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white border border-white/10 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all"
-                    title="Imprimir pedido ou gerar PDF (Com ou Sem Valores)"
-                  >
-                    <Printer className="w-3.5 h-3.5 text-emerald-400" /> Imprimir / PDF
-                  </button>
-
-                  <button
-                    onClick={() => setExportModal({ isOpen: true, targetSupplierName: undefined })}
-                    className="bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500/40 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-md"
-                    title="Enviar pedido formatado pelo WhatsApp (Com ou Sem Valores)"
-                  >
-                    <MessageCircle className="w-3.5 h-3.5 text-white" /> Enviar WhatsApp (c/ PDF)
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      if (confirm(`Excluir a pasta "${activeFolder.name}"? Os itens continuarão salvos.`)) {
-                        setClientFolders(prev => prev.filter(f => f.id !== activeFolder.id));
-                        setSelectedClientFolderId('all');
-                        toast({ title: '🗑️ Pasta excluída' });
-                      }
-                    }}
-                    className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 p-1.5 rounded-xl text-xs transition-all"
-                    title="Excluir Pasta"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Plus className="w-3.5 h-3.5" />
                   </button>
                 </div>
-              </div>
 
-              {/* GRID DE MÉTRICAS DO PEDIDO */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="bg-[#151922] border border-white/5 p-3 rounded-2xl">
-                  <span className="text-[10px] text-gray-400 uppercase font-bold block mb-0.5">Total de Itens</span>
-                  <span className="text-base font-black text-white">{displayedList.length} produtos</span>
-                </div>
-
-                <div className="bg-[#151922] border border-white/5 p-3 rounded-2xl">
-                  <span className="text-[10px] text-gray-400 uppercase font-bold block mb-0.5">Fornecedores</span>
-                  <span className="text-base font-black text-purple-300">{folderSuppliersCount} cotações</span>
-                </div>
-
-                <div className="bg-[#151922] border border-emerald-500/20 p-3 rounded-2xl sm:col-span-2">
-                  <span className="text-[10px] text-emerald-400 uppercase font-bold block mb-0.5">Valor Total do Pedido</span>
-                  <span className="text-lg font-black text-emerald-400">
-                    R$ {folderTotalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </span>
-                </div>
-              </div>
-
-              {/* AÇÕES RÁPIDAS POR FORNECEDOR INTEGRADA DIRETAMENTE */}
-              {(() => {
-                const folderSuppliers = Array.from(new Set(displayedList.map(it => it.selectedSupplierName))).filter(Boolean);
-                if (folderSuppliers.length === 0) return null;
-                return (
-                  <div className="space-y-2.5 pt-2 border-t border-white/10">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-black text-white flex items-center gap-1.5">
-                        <Send className="w-3.5 h-3.5 text-amber-400" />
-                        Ações Rápidas por Fornecedor (PDF &amp; WhatsApp):
-                      </span>
-                      <span className="text-[10px] text-gray-400">
-                        Gere o PDF oficial ou envie direto pelo WhatsApp para cada fornecedor
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {folderSuppliers.map(suppName => {
-                        const suppItems = displayedList.filter(it => it.selectedSupplierName === suppName);
-                        const suppTotal = suppItems.reduce((acc, curr) => acc + curr.total, 0);
-                        return (
-                          <div key={suppName} className="bg-[#151922] border border-amber-500/25 hover:border-amber-500/50 p-3 rounded-2xl flex flex-col justify-between gap-2.5 shadow-md transition-all">
-                            <div className="flex items-center justify-between gap-1.5">
-                              <span className="font-black text-xs text-white flex items-center gap-1.5 truncate">
-                                🏢 {suppName}
-                              </span>
-                              <span className="bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] px-2 py-0.5 rounded-lg font-black shrink-0">
-                                {suppItems.length} {suppItems.length === 1 ? 'item' : 'itens'} • R$ {suppTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                              </span>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-2 pt-1 border-t border-white/5">
-                              <button
-                                onClick={() => setExportModal({ isOpen: true, targetSupplierName: suppName })}
-                                className="bg-white/5 hover:bg-white/15 text-amber-300 hover:text-white border border-white/10 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
-                                title={`Opções de PDF e Impressão para ${suppName}`}
-                              >
-                                <Printer className="w-3.5 h-3.5 text-amber-400" />
-                                <span>PDF / Imprimir</span>
-                              </button>
-
-                              <button
-                                onClick={() => handleSendWhatsAppMaterialList(suppName, true)}
-                                className="bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1.5 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all shadow-md"
-                                title={`Enviar PDF de ${suppName} diretamente pelo WhatsApp`}
-                              >
-                                <MessageCircle className="w-3.5 h-3.5 text-white" />
-                                <span>WhatsApp PDF</span>
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {activeFolder.notes && (
-                <div className="bg-amber-500/5 border border-amber-500/20 px-3.5 py-2 rounded-xl text-xs text-amber-200/90 flex items-start gap-2">
-                  <span className="font-bold shrink-0">📝 Obs:</span>
-                  <span>{activeFolder.notes}</span>
-                </div>
-              )}
-
-            </div>
-          )}
-
-          {/* Form Modal: Add Item to Material List */}
-          {showAddMatForm && (
-            <div className="bg-[#111111] border border-blue-500/40 rounded-3xl p-6 shadow-2xl space-y-4 text-white max-w-2xl mx-auto">
-              
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-white/10 pb-3">
-                <h3 className="font-bold text-lg text-blue-400 flex items-center gap-2">
-                  <ShoppingCart className="w-5 h-5" /> Adicionar Produto à Lista de Compras
-                </h3>
-
-                <div className="flex bg-[#1a1a1a] p-1 rounded-xl border border-white/10">
-                  <button 
-                    onClick={() => setAddMatMode('select')}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                      addMatMode === 'select' 
-                        ? 'bg-blue-600 text-white shadow' 
-                        : 'text-gray-400 hover:text-white'
-                    }`}
-                  >
-                    Selecionar Existente
-                  </button>
-                  <button 
-                    onClick={() => setAddMatMode('new')}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                      addMatMode === 'new' 
-                        ? 'bg-emerald-600 text-white shadow' 
-                        : 'text-gray-400 hover:text-white'
-                    }`}
-                  >
-                    Cadastrar Novo
-                  </button>
-                </div>
-              </div>
-
-              {/* MODE 1: SELECT EXISTING PRODUCT FROM COMPARISONS */}
-              {addMatMode === 'select' && (
-                <div className="space-y-4">
-                  {activeComparisons.length === 0 ? (
-                    <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-amber-300 text-xs">
-                      Nenhum produto com cotação cadastrada nos fornecedores atuais. Cadastre um produto com cotação primeiro ou use "Cadastrar Novo" acima.
-                    </div>
-                  ) : (
-                    <>
-                      <div>
-                        <label className="text-xs text-blue-400 font-bold block mb-1">1. Escolha o Produto</label>
-                        <select 
-                          value={matForm.productId}
-                          onChange={e => handleSelectProductForMatList(e.target.value)}
-                          className="w-full p-3 rounded-xl border border-white/10 bg-[#1a1a1a] text-white focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm font-bold"
-                        >
-                          {activeComparisons.map(p => (
-                            <option key={p.id} value={p.id}>{p.productName} ({p.category})</option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="text-xs text-emerald-400 font-bold block mb-1">
-                          2. Fornecedor & Preço {matForm.isCheapest && '🏆 (Menor Preço Padrão)'}
-                        </label>
-                        {(() => {
-                          const selectedProd = comparisons.find(c => c.id === matForm.productId);
-                          if (!selectedProd || selectedProd.quotes.length === 0) {
-                            return <p className="text-xs text-red-400 p-2">Nenhuma cotação cadastrada neste produto ainda.</p>;
-                          }
-                          return (
-                            <select
-                              value={matForm.supplierName}
-                              onChange={e => handleSelectQuoteForMatList(e.target.value)}
-                              className="w-full p-3 rounded-xl border border-white/10 bg-[#1a1a1a] text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none text-sm font-bold"
-                            >
-                              {selectedProd.quotes.map((q, idx) => (
-                                <option key={idx} value={q.supplierName}>
-                                  {q.supplierName} — R$ {(q.unitPrice || q.price).toFixed(2)} {q.brand ? `[${q.brand}]` : ''}
-                                </option>
-                              ))}
-                            </select>
-                          );
-                        })()}
-                      </div>
-
-                      <div>
-                        <label className="text-xs text-gray-400 font-bold block mb-1">3. Quantidade Desejada</label>
-                        <input 
-                          type="number" 
-                          min="1"
-                          value={matForm.quantity === '' ? '' : matForm.quantity}
-                          onFocus={e => e.target.select()}
-                          onChange={e => {
-                            const v = e.target.value;
-                            setMatForm({ ...matForm, quantity: v === '' ? ('' as any) : parseInt(v) });
-                          }}
-                          className="w-full p-3 rounded-xl border border-white/10 bg-[#1a1a1a] text-white focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm font-bold"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-xs text-purple-400 font-bold block mb-1">4. Pasta / Nome do Cliente *</label>
-                        <select
-                          value={matForm.clientFolderId || (selectedClientFolderId !== 'all' ? selectedClientFolderId : '')}
-                          onChange={e => setMatForm({ ...matForm, clientFolderId: e.target.value })}
-                          className="w-full p-3 rounded-xl border border-purple-500/40 bg-[#1a1a1a] text-purple-300 focus:ring-2 focus:ring-purple-500 focus:outline-none text-sm font-bold"
-                        >
-                          <option value="">Selecione a Pasta do Cliente...</option>
-                          {clientFolders.map(f => (
-                            <option key={f.id} value={f.id}>📁 {f.name}</option>
-                          ))}
-                          <option value="__new__" className="text-emerald-400 font-black">➕ + Criar Nova Pasta para Outro Cliente...</option>
-                        </select>
-                        {matForm.clientFolderId === '__new__' && (
-                          <input
-                            autoFocus
-                            type="text"
-                            placeholder="Digite o Nome do Novo Cliente *"
-                            value={matForm.customClientName}
-                            onChange={e => setMatForm({ ...matForm, customClientName: e.target.value })}
-                            className="mt-2 w-full p-3 rounded-xl border border-purple-500 bg-[#1c1826] text-white focus:ring-2 focus:ring-purple-400 focus:outline-none text-sm font-bold placeholder-purple-300/60"
-                          />
-                        )}
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-
-              {/* MODE 2: CREATE & ADD NEW PRODUCT DIRECTLY */}
-              {addMatMode === 'new' && (
-                <div className="space-y-4 bg-[#181818] p-4 rounded-2xl border border-emerald-500/30">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs text-amber-400 font-bold block mb-1">1. Nome do Fornecedor *</label>
-                      <select 
-                        value={newMatForm.supplierId} 
-                        onChange={e => {
-                          const sel = suppliers.find(s => s.id === e.target.value);
-                          setNewMatForm({ 
-                            ...newMatForm, 
-                            supplierId: e.target.value,
-                            supplierName: sel ? sel.name : ''
-                          });
-                        }}
-                        className="w-full p-2.5 rounded-xl border border-white/10 bg-[#121212] text-white focus:ring-2 focus:ring-amber-500 focus:outline-none text-xs font-bold"
-                      >
-                        <option value="">Selecione um Fornecedor...</option>
-                        {suppliers.map(s => (
-                          <option key={s.id} value={s.id}>{s.name} ({s.category})</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="text-xs text-gray-300 font-bold block mb-1">2. Nome do Produto *</label>
-                      <input 
-                        type="text" 
-                        placeholder="Ex: MDF 15mm Branco TX"
-                        value={newMatForm.productName}
-                        onChange={e => setNewMatForm({ ...newMatForm, productName: e.target.value })}
-                        className="w-full p-2.5 rounded-xl border border-white/10 bg-[#121212] text-white focus:ring-2 focus:ring-amber-500 focus:outline-none text-xs font-bold"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-xs text-gray-300 font-bold block mb-1">3. Categoria</label>
-                      <input 
-                        type="text" 
-                        placeholder="Ex: MDF/MDP, Ferragens..."
-                        value={newMatForm.category}
-                        onChange={e => setNewMatForm({ ...newMatForm, category: e.target.value })}
-                        className="w-full p-2.5 rounded-xl border border-white/10 bg-[#121212] text-white focus:ring-2 focus:ring-amber-500 focus:outline-none text-xs"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-xs text-gray-300 font-bold block mb-1">4. Marca / Modelo</label>
-                      <input 
-                        type="text" 
-                        placeholder="Ex: Duratex, FGV, Blum..."
-                        value={newMatForm.brand}
-                        onChange={e => setNewMatForm({ ...newMatForm, brand: e.target.value })}
-                        className="w-full p-2.5 rounded-xl border border-white/10 bg-[#121212] text-white focus:ring-2 focus:ring-amber-500 focus:outline-none text-xs"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-xs text-emerald-400 font-bold block mb-1">5. Preço Unitário (R$) *</label>
-                      <input 
-                        type="number" 
-                        step="0.01"
-                        min="0"
-                        placeholder="0.00"
-                        value={newMatForm.unitPrice || ''}
-                        onChange={e => setNewMatForm({ ...newMatForm, unitPrice: parseFloat(e.target.value) || 0 })}
-                        className="w-full p-2.5 rounded-xl border border-emerald-500/40 bg-[#121212] text-emerald-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none text-xs font-bold"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-xs text-amber-400 font-bold block mb-1">6. Quantidade Desejada *</label>
-                      <input 
-                        type="number" 
-                        min="1"
-                        value={newMatForm.quantity === '' ? '' : newMatForm.quantity}
-                        onFocus={e => e.target.select()}
-                        onChange={e => {
-                          const v = e.target.value;
-                          setNewMatForm({ ...newMatForm, quantity: v === '' ? ('' as any) : parseInt(v) });
-                        }}
-                        className="w-full p-2.5 rounded-xl border border-amber-500/40 bg-[#121212] text-amber-300 focus:ring-2 focus:ring-amber-500 focus:outline-none text-xs font-bold"
-                      />
-                    </div>
-
-                    {/* Campo Nome / Pasta do Cliente */}
-                    <div className="sm:col-span-2">
-                      <label className="text-xs text-purple-400 font-bold block mb-1">7. Pasta / Nome do Cliente *</label>
-                      <select 
-                        value={newMatForm.clientFolderId || (selectedClientFolderId !== 'all' ? selectedClientFolderId : '')} 
-                        onChange={e => setNewMatForm({ ...newMatForm, clientFolderId: e.target.value })}
-                        className="w-full p-2.5 rounded-xl border border-purple-500/40 bg-[#121212] text-purple-300 focus:ring-2 focus:ring-purple-500 focus:outline-none text-xs font-bold"
-                      >
-                        <option value="">Selecione a Pasta do Cliente...</option>
-                        {clientFolders.map(f => (
-                          <option key={f.id} value={f.id}>📁 {f.name}</option>
-                        ))}
-                        <option value="__new__" className="text-emerald-400 font-black">➕ + Criar Nova Pasta para Outro Cliente...</option>
-                      </select>
-
-                      {newMatForm.clientFolderId === '__new__' && (
-                        <input
-                          autoFocus
-                          type="text"
-                          placeholder="Digite o Nome do Novo Cliente *"
-                          value={newMatForm.customClientName}
-                          onChange={e => setNewMatForm({ ...newMatForm, customClientName: e.target.value })}
-                          className="mt-2 w-full p-2.5 rounded-xl border border-purple-500 bg-[#1c1826] text-white focus:ring-2 focus:ring-purple-400 focus:outline-none text-xs font-bold placeholder-purple-300/60"
-                        />
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex gap-3 pt-2">
-                {addMatMode === 'select' ? (
-                  <button onClick={handleAddMaterialToList} className="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 transition-colors text-sm w-full">
-                    Adicionar à Lista de Compras
-                  </button>
-                ) : (
-                  <button onClick={handleAddNewProductDirectlyToMaterialList} className="bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-emerald-700 transition-colors text-sm w-full">
-                    Salvar e Adicionar à Lista
-                  </button>
-                )}
-                <button onClick={() => setShowAddMatForm(false)} className="bg-white/10 border border-white/20 text-white px-6 py-3 rounded-xl font-bold hover:bg-white/20 transition-colors text-sm">Cancelar</button>
-              </div>
-            </div>
-          )}
-
-          {activeFolder ? (
-            <div className="bg-[#111317] border border-white/10 rounded-3xl shadow-2xl overflow-x-auto text-white space-y-2 p-1">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center px-4 py-2.5 border-b border-white/5 gap-2">
-                <span className="text-xs font-black text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <ClipboardList className="w-4 h-4 text-amber-400" /> Itens de Compra — {activeFolder.name} ({displayedList.length} itens):
-                </span>
-
-                <div className="flex items-center gap-3 flex-wrap">
-                  <button
-                    onClick={() => {
-                      setShowAddMatForm(true);
-                      setAddMatMode('select');
-                      if (comparisons.length > 0) handleSelectProductForMatList(comparisons[0].id);
-                    }}
-                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow transition-all hover:scale-[1.02]"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> Adicionar Material
-                  </button>
-
-                  <span className="text-xs text-emerald-400 font-black">
-                    Total: R$ {folderTotalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </span>
-                </div>
-              </div>
-
-              <table className="w-full min-w-[750px]">
-                <thead className="bg-[#16191f] border-b border-white/10">
-                  <tr>
-                    <th className="text-left p-4 text-xs font-black text-amber-400 uppercase">Produto / Material</th>
-                    <th className="text-left p-4 text-xs font-black text-purple-400 uppercase">Pasta / Cliente</th>
-                    <th className="text-left p-4 text-xs font-black text-emerald-400 uppercase">Fornecedor Selecionado</th>
-                    <th className="text-left p-4 text-xs font-black text-gray-400 uppercase">Marca</th>
-                    <th className="text-center p-4 text-xs font-black text-gray-400 uppercase">Qtd</th>
-                    <th className="text-right p-4 text-xs font-black text-gray-400 uppercase">Valor Unit.</th>
-                    <th className="text-right p-4 text-xs font-black text-emerald-400 uppercase">Subtotal</th>
-                    <th className="text-center p-4 text-xs font-black text-gray-400 uppercase">Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {displayedList.map(item => {
-                    // Buscar o produto comparativo correspondente
-                    const compProd = comparisons.find(c => c.id === item.productId || c.productName.toLowerCase() === item.productName.toLowerCase());
-                    const registeredSupplierNames = new Set(suppliers.map(s => s.name.trim().toLowerCase()));
-                    const validQuotes = (compProd?.quotes || []).filter(q => {
-                      if (!q || !q.supplierName) return false;
-                      const p = q.unitPrice || q.price || 0;
-                      return p > 0 && registeredSupplierNames.has(q.supplierName.trim().toLowerCase());
-                    });
-
-                    // Encontrar o menor preço do mercado cadastrado e o fornecedor correspondente
-                    let minPrice = item.selectedUnitPrice;
-                    let cheapestSupplierName = item.selectedSupplierName;
-                    validQuotes.forEach(q => {
-                      const p = q.unitPrice || q.price || 0;
-                      if (p < minPrice) {
-                        minPrice = p;
-                        cheapestSupplierName = q.supplierName;
-                      }
-                    });
-
-                    const isCheapest = validQuotes.length > 0 ? (item.selectedUnitPrice <= minPrice + 0.001) : true;
-                    const diff = item.selectedUnitPrice - minPrice;
-
-                    return (
-                      <tr key={item.id} className="border-t border-white/5 hover:bg-white/5 transition-colors">
-                        <td className="p-4 font-bold text-white">
-                          {item.productName}
-                          <span className="block text-[10px] text-amber-500/80 font-normal">{item.category}</span>
-                        </td>
-                        <td className="p-4">
-                          <span className="bg-purple-500/15 border border-purple-500/30 text-purple-300 text-xs font-bold px-2.5 py-1 rounded-xl flex items-center gap-1 w-fit">
-                            📁 {item.clientName || activeFolder.name}
-                          </span>
-                        </td>
-                        <td className="p-4">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-extrabold text-white text-xs flex items-center gap-1">
-                              🏢 {item.selectedSupplierName}
-                            </span>
-                            {isCheapest ? (
-                              <span className="bg-emerald-500 text-black text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider shadow-sm">
-                                🏆 MENOR PREÇO
-                              </span>
-                            ) : (
-                              diff > 0 && (
-                                <span className="bg-red-500/15 border border-red-500/30 text-red-400 text-[10px] font-bold px-2 py-0.5 rounded-lg flex items-center gap-1">
-                                  <span>+ R$ {diff.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} mais caro</span>
-                                  <span className="text-emerald-400 font-extrabold">• Mais barato: {cheapestSupplierName} (R$ {minPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })})</span>
-                                </span>
-                              )
-                            )}
-                          </div>
-                        </td>
-                        <td className="p-4 text-gray-300 text-sm">{item.selectedBrand || 'Geral'}</td>
-                        <td className="p-4 text-center font-bold text-amber-400">{item.quantity}</td>
-                        <td className="p-4 text-right text-gray-300">R$ {item.selectedUnitPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                        <td className="p-4 text-right font-black text-emerald-400">R$ {item.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                        <td className="p-4 text-center">
-                          <div className="flex items-center justify-center gap-1.5">
-                            {/* Botão Editar */}
-                            <button
-                              onClick={() => setEditingMatItem(item)}
-                              className="w-8 h-8 bg-white/5 border border-white/10 text-gray-400 hover:text-amber-400 hover:bg-amber-500/10 rounded-xl flex items-center justify-center transition-all"
-                              title="Editar item"
-                            >
-                              <Pencil className="w-3.5 h-3.5" />
-                            </button>
-                          {/* Botão Deletar */}
-                          <button
-                            onClick={() => handleDeleteMaterialItem(item.id)}
-                            className="w-8 h-8 bg-white/5 border border-white/10 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-xl flex items-center justify-center transition-all"
-                            title="Remover item da lista"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                    );
-                  })}
-                  {displayedList.length === 0 && (
-                    <tr>
-                      <td colSpan={8} className="p-12 text-center text-gray-500">
-                        Nenhum material adicionado a esta pasta no momento. Use o botão <b>+ Adicionar Material</b> acima para incluir itens!
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            /* ─── PAINEL GERAL DE CLIENTES QUANDO NENHUM ESTÁ ABERTO ──── */
-            <div className="space-y-4">
-              
-              {/* Barra de Busca & Métricas Globais */}
-              <div className="bg-[#14161b] border border-white/10 p-4 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-3 shadow-md">
-                <div className="relative w-full md:w-80">
-                  <Search className="absolute left-3.5 top-2.5 w-4 h-4 text-gray-400" />
+                {/* Busca compacta */}
+                <div className="px-2.5 py-2 border-b border-white/[0.06]">
                   <input
                     value={clientFolderSearch}
                     onChange={e => setClientFolderSearch(e.target.value)}
-                    placeholder="🔍 Buscar cliente por nome ou telefone..."
-                    className="w-full pl-10 pr-4 py-2 rounded-xl border border-white/10 bg-[#1a1d24] text-white text-xs placeholder-gray-500 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    placeholder="🔍 Buscar pasta..."
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-white/10 bg-[#1a1d24] text-white text-[11px] placeholder-gray-500 focus:ring-1 focus:ring-amber-500 focus:outline-none"
                   />
                 </div>
 
-                <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap justify-end">
-                  <span>Pastas: <b className="text-white">{clientFolders.length}</b></span>
-                  <span>•</span>
-                  <span>Total Itens: <b className="text-white">{materialList.length}</b></span>
-                  <span>•</span>
-                  <span>Total Compras: <b className="text-emerald-400">R$ {materialList.reduce((acc, curr) => acc + curr.total, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</b></span>
+                {/* Lista de pastas */}
+                <div className="max-h-[65vh] overflow-y-auto">
+                  {clientFolders
+                    .filter(f => {
+                      const q = clientFolderSearch.toLowerCase().trim();
+                      return !q || f.name.toLowerCase().includes(q) || (f.phone && f.phone.includes(q));
+                    })
+                    .map(f => {
+                      const fItems = materialList.filter(m => m.clientFolderId === f.id || (m.clientName && m.clientName.toLowerCase() === f.name.toLowerCase()));
+                      const isActive = activeFolder && activeFolder.id === f.id;
+
+                      return (
+                        <div
+                          key={f.id}
+                          onClick={() => setSelectedClientFolderId(f.id)}
+                          className={`group flex items-center gap-2.5 px-3.5 py-2.5 cursor-pointer transition-all border-b border-white/[0.04] ${
+                            isActive
+                              ? 'bg-amber-500/15 border-l-2 border-l-amber-500'
+                              : 'hover:bg-white/[0.06] border-l-2 border-l-transparent'
+                          }`}
+                        >
+                          <Folder className={`w-4 h-4 shrink-0 transition-colors ${isActive ? 'text-amber-400' : 'text-gray-500 group-hover:text-amber-400'}`} />
+                          <div className="flex-1 min-w-0">
+                            <span className={`font-black text-xs block truncate transition-colors ${isActive ? 'text-amber-300 font-black' : 'text-white group-hover:text-amber-300'}`}>
+                              {f.name}
+                            </span>
+                            <span className="text-[9px] text-gray-400 block">
+                              {fItems.length} {fItems.length === 1 ? 'item' : 'itens'} {f.phone ? `• 📞 ${f.phone}` : ''}
+                            </span>
+                          </div>
+                          {isActive && (
+                            <div className="w-2 h-2 rounded-full bg-amber-400 shrink-0 shadow-sm shadow-amber-400" />
+                          )}
+                        </div>
+                      );
+                    })}
+
+                  {/* Criar nova pasta */}
+                  <div
+                    onClick={() => {
+                      setEditingClientFolder(null);
+                      setClientFolderForm({ name: '', phone: '', notes: '', status: 'Pronto para Comprar' });
+                      setShowClientFolderModal(true);
+                    }}
+                    className="flex items-center gap-2.5 px-3.5 py-2.5 cursor-pointer hover:bg-emerald-500/10 transition-all text-gray-400 hover:text-emerald-400 group border-l-2 border-l-transparent"
+                  >
+                    <FolderPlus className="w-4 h-4 shrink-0 text-emerald-500/70 group-hover:text-emerald-400 transition-colors" />
+                    <span className="text-[11px] font-bold">+ Nova Pasta de Cliente</span>
+                  </div>
                 </div>
               </div>
+            </div>
 
-              {/* Grid de Cards de Pastas de Clientes */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3.5">
-                {clientFolders
-                  .filter(f => {
-                    const q = clientFolderSearch.toLowerCase().trim();
-                    return !q || f.name.toLowerCase().includes(q) || (f.phone && f.phone.includes(q));
-                  })
-                  .map(f => {
-                    const fItems = materialList.filter(m => m.clientFolderId === f.id || (m.clientName && m.clientName.toLowerCase() === f.name.toLowerCase()));
-                    const fTotal = fItems.reduce((acc, curr) => acc + curr.total, 0);
-                    const fSuppliers = new Set(fItems.map(m => m.selectedSupplierName)).size;
-
-                    return (
-                      <div
-                        key={f.id}
-                        onClick={() => setSelectedClientFolderId(f.id)}
-                        className="group cursor-pointer bg-gradient-to-b from-[#16181e] to-[#121418] hover:from-[#1c2028] hover:to-[#161920] border border-amber-500/20 hover:border-amber-500/60 p-4 rounded-2xl transition-all shadow-lg flex flex-col justify-between space-y-3 hover:scale-[1.01]"
-                      >
-                        <div className="flex justify-between items-start gap-2">
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0 group-hover:scale-105 transition-transform">
-                              <Folder className="w-5 h-5 text-amber-400" />
-                            </div>
-                            <div className="min-w-0">
-                              <h4 className="text-sm font-black text-white group-hover:text-amber-300 transition-colors truncate">
-                                {f.name}
-                              </h4>
-                              <p className="text-[10px] text-gray-400 truncate">
-                                {f.phone ? `📞 ${f.phone}` : `Criado: ${new Date(f.createdAt).toLocaleDateString('pt-BR')}`}
-                              </p>
-                            </div>
+            {/* ═══ PAINEL DIREITO: CONTEÚDO DA PASTA SELECIONADA ═══ */}
+            <div className="flex-1 min-w-0 space-y-4">
+              {activeFolder ? (
+                <>
+                  {/* Dados da pasta aberta */}
+                  <div className="bg-gradient-to-br from-[#121418] via-[#101216] to-[#121418] border border-amber-500/30 p-5 rounded-3xl shadow-2xl space-y-4">
+                    {/* HEADER */}
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-white/10">
+                      <div className="flex items-center gap-3">
+                        <div className="w-11 h-11 rounded-2xl bg-amber-500/15 border border-amber-500/35 flex items-center justify-center text-amber-400 shrink-0 shadow-md">
+                          <Folder className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h2 className="text-xl font-black text-white tracking-wide">
+                              {activeFolder.name}
+                            </h2>
+                            <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-lg border ${
+                              activeFolder.status === 'Comprado'
+                                ? 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+                                : activeFolder.status === 'Em Cotação'
+                                ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                                : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                            }`}>
+                              {activeFolder.status || 'Pronto para Comprar'}
+                            </span>
                           </div>
-
-                          <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full shrink-0 border ${
-                            f.status === 'Comprado' 
-                              ? 'bg-blue-500/20 text-blue-300 border-blue-500/30' 
-                              : f.status === 'Em Cotação'
-                              ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
-                              : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-                          }`}>
-                            {f.status || 'Pronto'}
-                          </span>
-                        </div>
-
-                        <div className="flex justify-between items-center text-xs pt-2 border-t border-white/5">
-                          <span className="text-[11px] text-gray-400">
-                            <b className="text-white font-bold">{fItems.length}</b> itens • <span className="text-purple-300">{fSuppliers} forn.</span>
-                          </span>
-                          <span className="text-emerald-400 font-black text-xs">
-                            R$ {fTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </span>
-                        </div>
-
-                        <div className="flex gap-1.5 pt-1" onClick={e => e.stopPropagation()}>
-                          <button
-                            onClick={() => setSelectedClientFolderId(f.id)}
-                            className="flex-1 bg-amber-500/15 hover:bg-amber-500 text-amber-300 hover:text-black font-bold py-1.5 rounded-xl text-xs flex items-center justify-center gap-1 transition-all"
-                          >
-                            Abrir 📂
-                          </button>
-                          <button
-                            onClick={() => {
-                              setSelectedClientFolderId(f.id);
-                              setTimeout(() => handlePrintMaterialList(), 50);
-                            }}
-                            className="bg-[#1a1d24] hover:bg-[#252a35] text-white p-1.5 rounded-xl text-xs flex items-center justify-center transition-all border border-white/10"
-                            title="Imprimir pedido deste cliente"
-                          >
-                            <Printer className="w-3.5 h-3.5 text-emerald-400" />
-                          </button>
-                          <button
-                            onClick={() => {
-                              setEditingClientFolder(f);
-                              setClientFolderForm({ name: f.name, phone: f.phone || '', notes: f.notes || '', status: f.status });
-                              setShowClientFolderModal(true);
-                            }}
-                            className="bg-white/5 hover:bg-white/10 text-gray-400 hover:text-amber-300 p-1.5 rounded-xl text-xs flex items-center justify-center transition-all border border-white/10"
-                            title="Editar pasta do cliente"
-                          >
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
+                          <div className="flex items-center gap-3 text-[11px] text-gray-400 mt-0.5">
+                            {activeFolder.phone && <span>📞 {activeFolder.phone}</span>}
+                            {activeFolder.createdAt && (
+                              <span>📅 Criado em {new Date(activeFolder.createdAt).toLocaleDateString('pt-BR')}</span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    );
-                  })}
 
-                {/* Card Criar Nova Pasta */}
-                <div
-                  onClick={() => {
-                    setEditingClientFolder(null);
-                    setClientFolderForm({ name: '', phone: '', notes: '', status: 'Pronto para Comprar' });
-                    setShowClientFolderModal(true);
-                  }}
-                  className="cursor-pointer bg-[#121418] hover:bg-[#181b22] border-2 border-dashed border-white/10 hover:border-amber-500/40 p-4 rounded-2xl transition-all flex flex-col items-center justify-center gap-2 min-h-[140px] text-gray-400 hover:text-amber-400 group"
-                >
-                  <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform">
-                    <FolderPlus className="w-5 h-5 text-amber-400" />
+                      {/* Ações da Pasta */}
+                      <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto flex-wrap">
+                        <button
+                          onClick={() => {
+                            setEditingClientFolder(activeFolder);
+                            setClientFolderForm({
+                              name: activeFolder.name,
+                              phone: activeFolder.phone || '',
+                              notes: activeFolder.notes || '',
+                              status: activeFolder.status
+                            });
+                            setShowClientFolderModal(true);
+                          }}
+                          className="bg-white/5 hover:bg-white/10 text-gray-300 hover:text-amber-300 border border-white/10 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all"
+                        >
+                          <Pencil className="w-3.5 h-3.5 text-amber-400" /> Editar
+                        </button>
+                        <button
+                          onClick={() => setExportModal({ isOpen: true, targetSupplierName: undefined })}
+                          className="bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white border border-white/10 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all"
+                          title="Imprimir pedido ou gerar PDF"
+                        >
+                          <Printer className="w-3.5 h-3.5 text-emerald-400" /> PDF
+                        </button>
+                        <button
+                          onClick={() => setExportModal({ isOpen: true, targetSupplierName: undefined })}
+                          className="bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500/40 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-md"
+                          title="WhatsApp"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (confirm(`Excluir a pasta "${activeFolder.name}"?`)) {
+                              setClientFolders(prev => prev.filter(f => f.id !== activeFolder.id));
+                              setSelectedClientFolderId('all');
+                              toast({ title: '🗑️ Pasta excluída' });
+                            }
+                          }}
+                          className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 p-1.5 rounded-xl text-xs transition-all"
+                          title="Excluir Pasta"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* MÉTRICAS */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="bg-[#151922] border border-white/5 p-3 rounded-2xl flex items-center justify-between">
+                        <div>
+                          <span className="text-[10px] text-gray-400 uppercase font-bold block mb-0.5">Total de Itens</span>
+                          <span className="text-base font-black text-white">{displayedList.length} produtos</span>
+                        </div>
+                        <ShoppingCart className="w-5 h-5 text-amber-400/60" />
+                      </div>
+                      <div className="bg-[#151922] border border-white/5 p-3 rounded-2xl flex items-center justify-between">
+                        <div>
+                          <span className="text-[10px] text-gray-400 uppercase font-bold block mb-0.5">Fornecedores</span>
+                          <span className="text-base font-black text-purple-300">{folderSuppliersCount} cotações</span>
+                        </div>
+                        <Building className="w-5 h-5 text-purple-400/60" />
+                      </div>
+                      <div className="bg-[#151922] border border-emerald-500/30 p-3 rounded-2xl flex items-center justify-between">
+                        <div>
+                          <span className="text-[10px] text-emerald-400 uppercase font-bold block mb-0.5">Valor Total</span>
+                          <span className="text-base sm:text-lg font-black text-emerald-400">
+                            R$ {folderTotalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                        <DollarSign className="w-5 h-5 text-emerald-400/60" />
+                      </div>
+                    </div>
+
+                    {/* AÇÕES POR FORNECEDOR */}
+                    {(() => {
+                      const folderSuppliers = Array.from(new Set(displayedList.map(it => it.selectedSupplierName))).filter(Boolean);
+                      if (folderSuppliers.length === 0) return null;
+                      return (
+                        <div className="space-y-2.5 pt-2 border-t border-white/10">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-black text-white flex items-center gap-1.5">
+                              <Send className="w-3.5 h-3.5 text-amber-400" /> Ações por Fornecedor:
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                            {folderSuppliers.map(suppName => {
+                              const suppItems = displayedList.filter(it => it.selectedSupplierName === suppName);
+                              const suppTotal = suppItems.reduce((acc, curr) => acc + curr.total, 0);
+                              return (
+                                <div key={suppName} className="bg-[#151922] border border-amber-500/25 hover:border-amber-500/50 p-3 rounded-2xl flex flex-col justify-between gap-2.5 shadow-md transition-all">
+                                  <div className="flex items-center justify-between gap-1.5">
+                                    <span className="font-black text-xs text-white flex items-center gap-1.5 truncate">
+                                      🏢 {suppName}
+                                    </span>
+                                    <span className="bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] px-2 py-0.5 rounded-lg font-black shrink-0">
+                                      {suppItems.length} itens • R$ {suppTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                    </span>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-2 pt-1 border-t border-white/5">
+                                    <button onClick={() => setExportModal({ isOpen: true, targetSupplierName: suppName })} className="bg-white/5 hover:bg-white/15 text-amber-300 hover:text-white border border-white/10 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all" title={`PDF para ${suppName}`}>
+                                      <Printer className="w-3.5 h-3.5 text-amber-400" />
+                                      <span>PDF</span>
+                                    </button>
+                                    <button onClick={() => handleSendWhatsAppMaterialList(suppName, true)} className="bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1.5 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all shadow-md" title={`WhatsApp para ${suppName}`}>
+                                      <MessageCircle className="w-3.5 h-3.5 text-white" />
+                                      <span>WhatsApp</span>
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {activeFolder.notes && (
+                      <div className="bg-amber-500/5 border border-amber-500/20 px-3.5 py-2 rounded-xl text-xs text-amber-200/90 flex items-start gap-2">
+                        <span className="font-bold shrink-0">📝 Obs:</span>
+                        <span>{activeFolder.notes}</span>
+                      </div>
+                    )}
                   </div>
-                  <span className="text-xs font-bold">+ Nova Pasta de Cliente</span>
+
+                  {/* ─── TABELA DE ITENS DA PASTA ─── */}
+                  <div className="bg-[#111317] border border-white/10 rounded-3xl shadow-2xl overflow-x-auto text-white space-y-2 p-1">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center px-4 py-2.5 border-b border-white/5 gap-2">
+                      <span className="text-xs font-black text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <ClipboardList className="w-4 h-4 text-amber-400" /> Itens de Compra — {activeFolder.name} ({displayedList.length} itens):
+                      </span>
+
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <button
+                          onClick={() => {
+                            setShowAddMatForm(true);
+                            setAddMatMode('select');
+                            if (comparisons.length > 0) handleSelectProductForMatList(comparisons[0].id);
+                          }}
+                          className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow transition-all hover:scale-[1.02] cursor-pointer"
+                        >
+                          <Plus className="w-3.5 h-3.5" /> Adicionar Material
+                        </button>
+
+                        <span className="text-xs text-emerald-400 font-black">
+                          Total: R$ {folderTotalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    </div>
+
+                    <table className="w-full min-w-[750px]">
+                      <thead className="bg-[#16191f] border-b border-white/10">
+                        <tr>
+                          <th className="text-left p-4 text-xs font-black text-amber-400 uppercase">Produto / Material</th>
+                          <th className="text-left p-4 text-xs font-black text-purple-400 uppercase">Pasta / Cliente</th>
+                          <th className="text-left p-4 text-xs font-black text-emerald-400 uppercase">Fornecedor Selecionado</th>
+                          <th className="text-left p-4 text-xs font-black text-gray-400 uppercase">Marca</th>
+                          <th className="text-center p-4 text-xs font-black text-gray-400 uppercase">Qtd</th>
+                          <th className="text-right p-4 text-xs font-black text-gray-400 uppercase">Valor Unit.</th>
+                          <th className="text-right p-4 text-xs font-black text-emerald-400 uppercase">Subtotal</th>
+                          <th className="text-center p-4 text-xs font-black text-gray-400 uppercase">Ações</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {displayedList.map(item => {
+                          const compProd = comparisons.find(c => c.id === item.productId || c.productName.toLowerCase() === item.productName.toLowerCase());
+                          const registeredSupplierNames = new Set(suppliers.map(s => s.name.trim().toLowerCase()));
+                          const validQuotes = (compProd?.quotes || []).filter(q => {
+                            if (!q || !q.supplierName) return false;
+                            const p = q.unitPrice || q.price || 0;
+                            return p > 0 && registeredSupplierNames.has(q.supplierName.trim().toLowerCase());
+                          });
+
+                          let minPrice = item.selectedUnitPrice;
+                          let cheapestSupplierName = item.selectedSupplierName;
+                          validQuotes.forEach(q => {
+                            const p = q.unitPrice || q.price || 0;
+                            if (p < minPrice) {
+                              minPrice = p;
+                              cheapestSupplierName = q.supplierName;
+                            }
+                          });
+
+                          const isCheapest = validQuotes.length > 0 ? (item.selectedUnitPrice <= minPrice + 0.001) : true;
+                          const diff = item.selectedUnitPrice - minPrice;
+
+                          return (
+                            <tr key={item.id} className="border-t border-white/5 hover:bg-white/5 transition-colors">
+                              <td className="p-4 font-bold text-white">
+                                {item.productName}
+                                <span className="block text-[10px] text-amber-500/80 font-normal">{item.category}</span>
+                              </td>
+                              <td className="p-4">
+                                <span className="bg-purple-500/15 border border-purple-500/30 text-purple-300 text-xs font-bold px-2.5 py-1 rounded-xl flex items-center gap-1 w-fit">
+                                  📁 {item.clientName || activeFolder.name}
+                                </span>
+                              </td>
+                              <td className="p-4">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-extrabold text-white text-xs flex items-center gap-1">
+                                    🏢 {item.selectedSupplierName}
+                                  </span>
+                                  {isCheapest ? (
+                                    <span className="bg-emerald-500 text-black text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider shadow-sm">
+                                      🏆 MENOR PREÇO
+                                    </span>
+                                  ) : (
+                                    diff > 0 && (
+                                      <span className="bg-red-500/15 border border-red-500/30 text-red-400 text-[10px] font-bold px-2 py-0.5 rounded-lg flex items-center gap-1">
+                                        <span>+ R$ {diff.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} mais caro</span>
+                                        <span className="text-emerald-400 font-extrabold">• Mais barato: {cheapestSupplierName} (R$ {minPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })})</span>
+                                      </span>
+                                    )
+                                  )}
+                                </div>
+                              </td>
+                              <td className="p-4 text-gray-300 text-sm">{item.selectedBrand || 'Geral'}</td>
+                              <td className="p-4 text-center font-bold text-amber-400">{item.quantity}</td>
+                              <td className="p-4 text-right text-gray-300">R$ {item.selectedUnitPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                              <td className="p-4 text-right font-black text-emerald-400">R$ {item.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                              <td className="p-4 text-center">
+                                <div className="flex items-center justify-center gap-1.5">
+                                  <button
+                                    onClick={() => setEditingMatItem(item)}
+                                    className="w-8 h-8 bg-white/5 border border-white/10 text-gray-400 hover:text-amber-400 hover:bg-amber-500/10 rounded-xl flex items-center justify-center transition-all cursor-pointer"
+                                    title="Editar item"
+                                  >
+                                    <Pencil className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteMaterialItem(item.id)}
+                                    className="w-8 h-8 bg-white/5 border border-white/10 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-xl flex items-center justify-center transition-all cursor-pointer"
+                                    title="Remover item da lista"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        {displayedList.length === 0 && (
+                          <tr>
+                            <td colSpan={8} className="p-12 text-center text-gray-500">
+                              Nenhum material adicionado a esta pasta no momento. Use o botão <b>+ Adicionar Material</b> acima para incluir itens!
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              ) : (
+                <div className="bg-[#111317] border border-white/10 rounded-3xl p-12 text-center space-y-3 shadow-xl">
+                  <Folder className="w-12 h-12 text-amber-500/30 mx-auto" />
+                  <h3 className="text-lg font-black text-white">Nenhuma Pasta Encontrada</h3>
+                  <p className="text-sm text-gray-400 max-w-md mx-auto">
+                    Crie a sua primeira pasta de cliente para começar a organizar as suas cotações e compras.
+                  </p>
+                  <button
+                    onClick={() => {
+                      setEditingClientFolder(null);
+                      setClientFolderForm({ name: '', phone: '', notes: '', status: 'Pronto para Comprar' });
+                      setShowClientFolderModal(true);
+                    }}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 mx-auto mt-2 shadow-md transition-all cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" /> Criar Nova Pasta
+                  </button>
                 </div>
-              </div>
-
+              )}
             </div>
-          )}
-
+          </div>
 
         </div>
         );
@@ -3967,16 +3813,21 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
           activeFolderId={selectedClientFolderId}
           availableMaterials={
             Array.from(new Set(
-              comparisons
-                .map(c => c.productName)
-                .filter(n => n.toUpperCase().includes('MDF') || n.toUpperCase().includes('MDP') || n.toUpperCase().includes('CHAPA') || n.toUpperCase().includes('ITAPUA') || n.toUpperCase().includes('BRANCO'))
+              (comparisons || [])
+                .filter(c => c && typeof c.productName === 'string' && c.productName.trim() !== '')
+                .map(c => c.productName.trim())
+                .filter(n => {
+                  const upper = n.toUpperCase();
+                  return upper.includes('MDF') || upper.includes('MDP') || upper.includes('CHAPA') || upper.includes('ITAPUA') || upper.includes('BRANCO');
+                })
                 .concat(['MDF 15 ITAPUA', 'MDF BRANCO TX 15', 'MDF 06 ITAPUA'])
             ))
           }
+          suppliers={suppliers || []}
         />
       )}
 
-      {/* ─── TAB 5: SD GEMINI 3.7 FLASH IA (WORKSTATION COMPLETA & CONTROLE TOTAL) ───────── */}
+      {/* ─── TAB: SD GEMINI 3.7 FLASH IA (WORKSTATION COMPLETA & CONTROLE TOTAL) ───────── */}
       {activeTab === 'gemini_ai' && (
         <AntigravityAIStudio
           initialModel="gemini-3.7-flash"
@@ -4192,6 +4043,207 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
           }}
           onNavigateToCuttingPlan={() => setActiveTab('cutting_plan')}
         />
+      )}
+
+      {/* ─── TAB: CONFIGURAÇÃO & FERRAMENTAS ────────────────────────────── */}
+      {activeTab === 'configuration' && (
+        <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300">
+          
+          {/* CABEÇALHO DA ABA CONFIGURAÇÃO */}
+          <div className="relative overflow-hidden bg-gradient-to-br from-slate-900/95 via-[#11141b]/90 to-slate-900/95 border border-amber-500/30 backdrop-blur-xl p-5 sm:p-6 rounded-3xl shadow-2xl">
+            <div className="absolute top-0 right-0 w-80 h-32 bg-amber-500/10 blur-3xl pointer-events-none rounded-full" />
+            <div className="flex items-center gap-4 relative z-10">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0 shadow-lg">
+                <Settings className="w-6 h-6 text-amber-400" />
+              </div>
+              <div>
+                <h2 className="text-xl sm:text-2xl font-black bg-gradient-to-r from-white via-slate-100 to-amber-300 bg-clip-text text-transparent">
+                  Central de Configuração &amp; Ferramentas
+                </h2>
+                <p className="text-slate-400 text-xs mt-1">
+                  Ações rápidas de reajuste de preços, importação inteligente por IA, cadastro de produtos e gestão
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* BARRA DE AÇÕES RÁPIDAS (EXATAMENTE OS 5 BOTÕES SOLICITADOS) */}
+          <div className="bg-[#121418] border border-white/10 p-4 sm:p-5 rounded-3xl shadow-xl space-y-3">
+            <h3 className="text-xs font-black text-amber-400 uppercase tracking-wider flex items-center gap-2">
+              <Sparkles className="w-3.5 h-3.5" /> Ações Rápidas &amp; Ferramentas do Sistema
+            </h3>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+              {/* 1. Reajustar Preços */}
+              <button
+                onClick={() => setShowPriceAdjustmentModal(true)}
+                className="bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 hover:text-amber-200 border border-amber-500/40 p-4 rounded-2xl text-xs font-black flex flex-col items-center justify-center gap-2 transition-all shadow-md hover:scale-[1.02] active:scale-[0.98] group"
+              >
+                <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 group-hover:scale-110 transition-transform">
+                  <Percent className="w-5 h-5" />
+                </div>
+                <span>% Reajustar Preços (%)</span>
+              </button>
+
+              {/* 2. Abrir PDF / Foto */}
+              <button 
+                onClick={() => batchFileInputRef.current?.click()}
+                className="bg-purple-500/15 hover:bg-purple-500/25 text-purple-200 hover:text-white border border-purple-500/40 p-4 rounded-2xl text-xs font-black flex flex-col items-center justify-center gap-2 transition-all shadow-md hover:scale-[1.02] active:scale-[0.98] group"
+              >
+                <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-500/30 flex items-center justify-center text-purple-300 group-hover:scale-110 transition-transform">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <span>📄 Abrir PDF / Foto</span>
+              </button>
+
+              {/* 3. Descrever por Texto */}
+              <button 
+                onClick={() => { setShowTextImportModal(true); setTextImportInput(''); }}
+                className="bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-200 hover:text-white border border-indigo-500/40 p-4 rounded-2xl text-xs font-black flex flex-col items-center justify-center gap-2 transition-all shadow-md hover:scale-[1.02] active:scale-[0.98] group"
+              >
+                <div className="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-300 group-hover:scale-110 transition-transform">
+                  <PenLine className="w-5 h-5" />
+                </div>
+                <span>✏️ Descrever por Texto</span>
+              </button>
+
+              {/* 4. Adicionar Produto */}
+              <button 
+                onClick={() => setShowProdForm(true)} 
+                className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white border border-emerald-400/40 p-4 rounded-2xl text-xs font-black flex flex-col items-center justify-center gap-2 transition-all shadow-md hover:scale-[1.02] active:scale-[0.98] group"
+              >
+                <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-white group-hover:scale-110 transition-transform">
+                  <Plus className="w-5 h-5" />
+                </div>
+                <span>+ Adicionar Produto</span>
+              </button>
+
+              {/* 5. Excluir sem Comparação */}
+              <button
+                onClick={handleDeleteUncomparedProducts}
+                className="bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 hover:text-orange-300 border border-orange-500/30 p-4 rounded-2xl text-xs font-black flex flex-col items-center justify-center gap-2 transition-all shadow-md hover:scale-[1.02] active:scale-[0.98] group"
+              >
+                <div className="w-10 h-10 rounded-xl bg-orange-500/20 border border-orange-500/30 flex items-center justify-center text-orange-400 group-hover:scale-110 transition-transform">
+                  <Trash2 className="w-5 h-5" />
+                </div>
+                <span>🗑️ Excluir sem Comparação</span>
+              </button>
+
+              {/* 6. Excluir TODOS os Produtos */}
+              <button
+                onClick={handleClearAllProducts}
+                className="bg-red-500/15 hover:bg-red-500/25 text-red-300 hover:text-red-200 border border-red-500/40 p-4 rounded-2xl text-xs font-black flex flex-col items-center justify-center gap-2 transition-all shadow-md hover:scale-[1.02] active:scale-[0.98] group"
+                title="Excluir todos os produtos e cotações do comparativo"
+              >
+                <div className="w-10 h-10 rounded-xl bg-red-500/20 border border-red-500/30 flex items-center justify-center text-red-400 group-hover:scale-110 transition-transform">
+                  <Trash2 className="w-5 h-5" />
+                </div>
+                <span>🗑️ Limpar Todos os Produtos</span>
+              </button>
+            </div>
+          </div>
+
+          {/* PAINEL DE GESTÃO DE FORNECEDORES & DADOS */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            
+            {/* CARD FORNECEDORES */}
+            <div className="bg-[#121418] border border-white/10 p-5 rounded-3xl space-y-3">
+              <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
+                <h4 className="text-xs font-black text-white flex items-center gap-2">
+                  <Building className="w-4 h-4 text-amber-400" />
+                  Fornecedores Cadastrados ({suppliers.length})
+                </h4>
+                <button
+                  onClick={() => {
+                    setEditingId(null);
+                    setForm({ name: '', cnpj: '', phone: '', email: '', address: '', category: 'Geral', notes: '' });
+                    setShowForm(true);
+                  }}
+                  className="bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 px-2.5 py-1 rounded-xl text-xs font-bold"
+                >
+                  + Novo Fornecedor
+                </button>
+              </div>
+
+              <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                {suppliers.map(s => (
+                  <div key={s.id} className="bg-white/5 border border-white/10 p-3 rounded-2xl flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-black text-white">🏢 {s.name}</p>
+                      <p className="text-[10px] text-gray-400">{s.category || 'Geral'} {s.phone ? `• Tel: ${s.phone}` : ''}</p>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => {
+                          setEditingId(s.id);
+                          setForm({
+                            name: s.name,
+                            cnpj: s.cnpj || '',
+                            phone: s.phone || '',
+                            email: s.email || '',
+                            address: s.address || '',
+                            category: s.category || 'Geral',
+                            notes: s.notes || ''
+                          });
+                          setShowForm(true);
+                        }}
+                        className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white"
+                        title="Editar Fornecedor"
+                      >
+                        <Edit className="w-3.5 h-3.5 text-blue-400" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteSupplier(s.id)}
+                        className="p-1.5 rounded-lg bg-white/5 hover:bg-red-500/20 text-gray-400 hover:text-red-400"
+                        title="Excluir Fornecedor"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* CARD RESUMO DO BANCO DE DADOS & ATALHOS */}
+            <div className="bg-[#121418] border border-white/10 p-5 rounded-3xl space-y-3">
+              <h4 className="text-xs font-black text-white flex items-center gap-2 border-b border-white/10 pb-2.5">
+                <BarChart3 className="w-4 h-4 text-emerald-400" />
+                Resumo do Sistema &amp; Estatísticas
+              </h4>
+
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div className="bg-white/5 border border-white/10 p-3 rounded-2xl">
+                  <span className="text-[10px] text-gray-400 uppercase block font-bold">Total de Produtos</span>
+                  <span className="text-xl font-black text-white mt-1 block">{comparisons.length} itens</span>
+                </div>
+                <div className="bg-white/5 border border-white/10 p-3 rounded-2xl">
+                  <span className="text-[10px] text-gray-400 uppercase block font-bold">Pastas de Clientes</span>
+                  <span className="text-xl font-black text-amber-300 mt-1 block">{clientFolders.length} pastas</span>
+                </div>
+                <div className="bg-white/5 border border-white/10 p-3 rounded-2xl">
+                  <span className="text-[10px] text-gray-400 uppercase block font-bold">Fornecedores Ativos</span>
+                  <span className="text-xl font-black text-emerald-400 mt-1 block">{suppliers.length} empresas</span>
+                </div>
+                <div className="bg-white/5 border border-white/10 p-3 rounded-2xl">
+                  <span className="text-[10px] text-gray-400 uppercase block font-bold">Economia Identificada</span>
+                  <span className="text-xl font-black text-teal-300 mt-1 block">R$ {totalSavingsPotential.toFixed(2)}</span>
+                </div>
+              </div>
+
+              <div className="pt-2 flex items-center justify-between">
+                <button
+                  onClick={() => setActiveTab('comparison')}
+                  className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 shadow-md transition-all"
+                >
+                  <BarChart3 className="w-4 h-4" /> Ir para Comparativo Geral
+                </button>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
       )}
 
       </div>
