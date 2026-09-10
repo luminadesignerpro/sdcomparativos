@@ -1,0 +1,265 @@
+import React, { useState } from 'react';
+import { Instagram, Bell, Settings, ArrowRight, ChevronUp, X } from 'lucide-react';
+import { ViewMode } from '@/types';
+import { NavIcon } from '@/components/ui/nav-icon';
+import logoSD from '@/assets/logo-sd.jpeg';
+import { useIsMobile } from '@/hooks/use-mobile';
+
+interface AppSidebarProps {
+    authState: 'ADMIN' | 'CLIENT' | 'EMPLOYEE';
+    view: ViewMode;
+    setView: (view: ViewMode) => void;
+    setAuthState: (state: 'SELECT' | 'LOGIN' | 'ADMIN' | 'CLIENT' | 'EMPLOYEE') => void;
+}
+
+// Itens principais que aparecem na bottom bar (max 4)
+const getMainItems = (authState: string, view: ViewMode, setView: (v: ViewMode) => void) => {
+    if (authState === 'ADMIN') return [
+        { icon: 'layout-dashboard', label: 'Início', active: view === ViewMode.DASHBOARD, onClick: () => setView(ViewMode.DASHBOARD) },
+        { icon: 'cube', label: '3D', active: view === ViewMode.DASHBOARD_3D, onClick: () => setView(ViewMode.DASHBOARD_3D) },
+        { icon: 'file-text', label: 'Vendas', active: view === ViewMode.CONTRACTS, onClick: () => setView(ViewMode.CONTRACTS) },
+        { icon: 'message-square', label: 'CRM', active: view === ViewMode.CRM, onClick: () => setView(ViewMode.CRM) },
+    ];
+    if (authState === 'EMPLOYEE') return [
+        { icon: 'clock', label: 'Meu Ponto', active: view === ViewMode.TIME_TRACKING, onClick: () => setView(ViewMode.TIME_TRACKING) },
+        { icon: 'navigation', label: 'Viagens', active: view === ViewMode.FLEET, onClick: () => setView(ViewMode.FLEET) },
+    ];
+    return [
+        { icon: 'home', label: 'Painel', active: view === ViewMode.CLIENT_PORTAL, onClick: () => setView(ViewMode.CLIENT_PORTAL) },
+        { icon: 'shield', label: 'Garantia', active: view === ViewMode.WARRANTY, onClick: () => setView(ViewMode.WARRANTY) },
+        { icon: 'message-square', label: 'Chat', active: view === ViewMode.CRM, onClick: () => setView(ViewMode.CRM) },
+        { icon: 'book-open', label: 'Pós-Venda', active: view === ViewMode.AFTER_SALES, onClick: () => setView(ViewMode.AFTER_SALES) },
+    ];
+};
+
+// Todos os itens do admin para o menu expandido
+const getAllAdminItems = (view: ViewMode, setView: (v: ViewMode) => void) => [
+    { icon: 'layout-dashboard', label: 'Início', active: view === ViewMode.DASHBOARD, onClick: () => setView(ViewMode.DASHBOARD) },
+    { icon: 'cube', label: '3D', active: view === ViewMode.DASHBOARD_3D, onClick: () => setView(ViewMode.DASHBOARD_3D) },
+    { icon: 'file-text', label: 'Vendas', active: view === ViewMode.CONTRACTS, onClick: () => setView(ViewMode.CONTRACTS) },
+    { icon: 'building', label: 'Fornecedores', active: view === ViewMode.SUPPLIERS, onClick: () => setView(ViewMode.SUPPLIERS) },
+    { icon: 'package', label: 'Estoque', active: view === ViewMode.PRODUCTS, onClick: () => setView(ViewMode.PRODUCTS) },
+    { icon: 'clipboard-list', label: 'OS', active: view === ViewMode.SERVICE_ORDERS, onClick: () => setView(ViewMode.SERVICE_ORDERS) },
+    { icon: 'banknote', label: 'Caixa', active: view === ViewMode.CASH_REGISTER, onClick: () => setView(ViewMode.CASH_REGISTER) },
+    { icon: 'trending-down', label: 'A Pagar', active: view === ViewMode.ACCOUNTS_PAYABLE, onClick: () => setView(ViewMode.ACCOUNTS_PAYABLE) },
+    { icon: 'trending-up', label: 'A Receber', active: view === ViewMode.ACCOUNTS_RECEIVABLE, onClick: () => setView(ViewMode.ACCOUNTS_RECEIVABLE) },
+    { icon: 'file-signature', label: 'Contratos', active: view === ViewMode.CONTRACTS_MGMT, onClick: () => setView(ViewMode.CONTRACTS_MGMT) },
+    { icon: 'users', label: 'Usuários', active: view === ViewMode.USER_MANAGEMENT, onClick: () => setView(ViewMode.USER_MANAGEMENT) },
+    { icon: 'clock', label: 'Ponto', active: view === ViewMode.TIME_TRACKING, onClick: () => setView(ViewMode.TIME_TRACKING) },
+    { icon: 'navigation', label: 'Frota', active: view === ViewMode.FLEET, onClick: () => setView(ViewMode.FLEET) },
+    { icon: 'message-square', label: 'CRM', active: view === ViewMode.CRM, onClick: () => setView(ViewMode.CRM) },
+    { icon: 'settings', label: 'Config', active: view === ViewMode.SETTINGS, onClick: () => setView(ViewMode.SETTINGS) },
+];
+
+export const AppSidebar: React.FC<AppSidebarProps> = ({
+    authState,
+    view,
+    setView,
+    setAuthState,
+}) => {
+    const isMobile = useIsMobile();
+    const [menuOpen, setMenuOpen] = useState(false);
+
+    const mainItems = getMainItems(authState, view, setView);
+    const allAdminItems = getAllAdminItems(view, setView);
+
+    const handleItemClick = (onClick: () => void) => {
+        onClick();
+        setMenuOpen(false);
+    };
+
+    // ── MOBILE VERTICAL: Bottom Tab Bar ──
+    if (isMobile) {
+        return (
+            <>
+                {/* Menu expandido (drawer de baixo para cima) */}
+                {menuOpen && (
+                    <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)}>
+                        <div
+                            className="absolute bottom-16 left-0 right-0 rounded-t-3xl overflow-hidden"
+                            style={{
+                                background: 'linear-gradient(180deg, hsl(var(--sidebar-background) / 0.98) 0%, hsl(var(--sidebar-background)) 100%)',
+                                boxShadow: '0 -8px 40px rgba(0,0,0,0.4)',
+                                backdropFilter: 'blur(20px)',
+                            }}
+                            onClick={e => e.stopPropagation()}
+                        >
+                            {/* Handle */}
+                            <div className="flex justify-center pt-3 pb-1">
+                                <div className="w-10 h-1 rounded-full bg-white/20" />
+                            </div>
+
+                            {/* Header do menu */}
+                            <div className="flex items-center justify-between px-5 py-3 border-b border-white/10">
+                                <div className="flex items-center gap-3">
+                                    <img src={logoSD} alt="SD" className="w-8 h-8 rounded-xl border border-primary object-cover" />
+                                    <span className="text-white font-bold text-sm">SD Móveis Projetados</span>
+                                </div>
+                                <button onClick={() => setMenuOpen(false)} className="text-white/50 hover:text-white p-1">
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+
+                            {/* Grid de itens */}
+                            <div className="grid grid-cols-5 gap-1 p-3 max-h-64 overflow-y-auto">
+                                {(authState === 'ADMIN' ? allAdminItems : mainItems).map((item, i) => (
+                                    <button
+                                        key={i}
+                                        onClick={() => handleItemClick(item.onClick)}
+                                        className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${
+                                            item.active
+                                                ? 'bg-primary/20 text-primary'
+                                                : 'text-white/60 hover:text-white hover:bg-white/10'
+                                        }`}
+                                    >
+                                        <NavIcon icon={item.icon} label="" active={item.active} onClick={() => {}} compact />
+                                        <span className="text-[9px] font-bold leading-tight text-center">{item.label}</span>
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* Logout */}
+                            <div className="flex justify-center pb-4 pt-2 border-t border-white/10">
+                                <button
+                                    onClick={() => { setAuthState('SELECT'); setMenuOpen(false); }}
+                                    className="flex items-center gap-2 text-red-400 text-sm font-bold px-6 py-2 rounded-xl hover:bg-red-500/10 transition-all"
+                                >
+                                    <ArrowRight className="w-4 h-4 rotate-180" />
+                                    Sair do sistema
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Bottom Tab Bar fixa */}
+                <nav
+                    className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around px-2 py-1 border-t border-white/10"
+                    style={{
+                        background: 'linear-gradient(0deg, hsl(var(--sidebar-background)) 0%, hsl(var(--sidebar-background) / 0.95) 100%)',
+                        boxShadow: '0 -4px 20px rgba(0,0,0,0.3)',
+                        backdropFilter: 'blur(20px)',
+                        height: '60px',
+                        paddingBottom: 'env(safe-area-inset-bottom)',
+                    }}
+                >
+                    {/* Logo / Home */}
+                    <button
+                        onClick={() => setView(authState === 'ADMIN' ? ViewMode.DASHBOARD : authState === 'EMPLOYEE' ? ViewMode.TIME_TRACKING : ViewMode.CLIENT_PORTAL)}
+                        className="w-10 h-10 rounded-xl overflow-hidden border-2 border-primary shadow-glow flex-shrink-0"
+                    >
+                        <img src={logoSD} alt="SD" className="w-full h-full object-cover" />
+                    </button>
+
+                    {/* Itens principais */}
+                    {mainItems.map((item, i) => (
+                        <button
+                            key={i}
+                            onClick={item.onClick}
+                            className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl transition-all min-w-0 ${
+                                item.active ? 'text-primary' : 'text-white/50'
+                            }`}
+                        >
+                            <NavIcon icon={item.icon} label="" active={item.active} onClick={() => {}} compact />
+                            <span className={`text-[9px] font-bold truncate max-w-12 ${item.active ? 'text-primary' : 'text-white/40'}`}>
+                                {item.label}
+                            </span>
+                            {item.active && <div className="w-4 h-0.5 rounded-full bg-primary mt-0.5" />}
+                        </button>
+                    ))}
+
+                    {/* Botão "Mais" */}
+                    <button
+                        onClick={() => setMenuOpen(!menuOpen)}
+                        className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl transition-all ${
+                            menuOpen ? 'text-primary' : 'text-white/50'
+                        }`}
+                    >
+                        <ChevronUp className={`w-5 h-5 transition-transform ${menuOpen ? 'rotate-180' : ''}`} />
+                        <span className="text-[9px] font-bold">Mais</span>
+                    </button>
+                </nav>
+
+                {/* Espaço para não cobrir o conteúdo */}
+                <div className="h-16 flex-shrink-0" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }} />
+            </>
+        );
+    }
+
+    // ── DESKTOP/LANDSCAPE: Sidebar lateral ──
+    return (
+        <aside
+            className="w-24 flex flex-col items-center py-4 gap-2 min-h-0 overflow-y-auto relative z-10 backdrop-blur-xl border-r border-sidebar-border/30"
+            style={{
+                background: 'linear-gradient(180deg, hsl(var(--sidebar-background) / 0.92) 0%, hsl(var(--sidebar-background) / 0.98) 100%)',
+                boxShadow: '4px 0 30px hsl(var(--primary) / 0.08), inset -1px 0 0 hsl(var(--primary) / 0.06)'
+            }}
+        >
+            <button
+                onClick={() => setView(authState === 'ADMIN' ? ViewMode.DASHBOARD : authState === 'EMPLOYEE' ? ViewMode.TIME_TRACKING : ViewMode.CLIENT_PORTAL)}
+                className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-primary shadow-glow hover:scale-110 transition-all duration-300"
+            >
+                <img src={logoSD} alt="SD" className="w-full h-full object-cover" />
+            </button>
+
+            <nav className="flex-1 flex flex-col items-center gap-2 mt-6 overflow-y-auto w-full">
+                {authState === 'ADMIN' ? (
+                    <>
+                        <NavIcon icon="layout-dashboard" label="Início" active={view === ViewMode.DASHBOARD} onClick={() => setView(ViewMode.DASHBOARD)} />
+                        <NavIcon icon="cube" label="3D" active={view === ViewMode.DASHBOARD_3D} onClick={() => setView(ViewMode.DASHBOARD_3D)} />
+                        <NavIcon icon="file-text" label="Vendas" active={view === ViewMode.CONTRACTS} onClick={() => setView(ViewMode.CONTRACTS)} />
+                        <NavIcon icon="building" label="Fornecedores" active={view === ViewMode.SUPPLIERS} onClick={() => setView(ViewMode.SUPPLIERS)} />
+                        <NavIcon icon="package" label="Estoque" active={view === ViewMode.PRODUCTS} onClick={() => setView(ViewMode.PRODUCTS)} />
+                        <NavIcon icon="clipboard-list" label="OS" active={view === ViewMode.SERVICE_ORDERS} onClick={() => setView(ViewMode.SERVICE_ORDERS)} />
+                        <NavIcon icon="banknote" label="Caixa" active={view === ViewMode.CASH_REGISTER} onClick={() => setView(ViewMode.CASH_REGISTER)} />
+                        <NavIcon icon="trending-down" label="A Pagar" active={view === ViewMode.ACCOUNTS_PAYABLE} onClick={() => setView(ViewMode.ACCOUNTS_PAYABLE)} />
+                        <NavIcon icon="trending-up" label="A Receber" active={view === ViewMode.ACCOUNTS_RECEIVABLE} onClick={() => setView(ViewMode.ACCOUNTS_RECEIVABLE)} />
+                        <NavIcon icon="file-signature" label="Contratos" active={view === ViewMode.CONTRACTS_MGMT} onClick={() => setView(ViewMode.CONTRACTS_MGMT)} />
+                        <NavIcon icon="users" label="Usuários" active={view === ViewMode.USER_MANAGEMENT} onClick={() => setView(ViewMode.USER_MANAGEMENT)} />
+                        <NavIcon icon="clock" label="Ponto" active={view === ViewMode.TIME_TRACKING} onClick={() => setView(ViewMode.TIME_TRACKING)} />
+                        <NavIcon icon="navigation" label="Frota" active={view === ViewMode.FLEET} onClick={() => setView(ViewMode.FLEET)} />
+                        <NavIcon icon="message-square" label="CRM" active={view === ViewMode.CRM} onClick={() => setView(ViewMode.CRM)} isFab />
+                    </>
+                ) : authState === 'EMPLOYEE' ? (
+                    <>
+                        <NavIcon icon="clock" label="Meu Ponto" active={view === ViewMode.TIME_TRACKING} onClick={() => setView(ViewMode.TIME_TRACKING)} />
+                        <NavIcon icon="navigation" label="Viagens" active={view === ViewMode.FLEET} onClick={() => setView(ViewMode.FLEET)} />
+                    </>
+                ) : (
+                    <>
+                        <NavIcon icon="home" label="Painel" active={view === ViewMode.CLIENT_PORTAL} onClick={() => setView(ViewMode.CLIENT_PORTAL)} />
+                        <NavIcon icon="shield" label="Garantia" active={view === ViewMode.WARRANTY} onClick={() => setView(ViewMode.WARRANTY)} />
+                        <NavIcon icon="message-square" label="Chat" active={view === ViewMode.CRM} onClick={() => setView(ViewMode.CRM)} />
+                        <NavIcon icon="book-open" label="Pós-Venda" active={view === ViewMode.AFTER_SALES} onClick={() => setView(ViewMode.AFTER_SALES)} />
+                        <button
+                            type="button"
+                            onClick={() => window.open(`https://www.instagram.com/sdmoveisprojetados/`, "_blank")}
+                            className="flex flex-col items-center gap-1 p-2 rounded-xl text-gray-400 hover:text-pink-500 hover:bg-white/10 transition-all"
+                        >
+                            <Instagram className="w-5 h-5" />
+                            <span className="text-[10px] font-bold">Instagram</span>
+                        </button>
+                    </>
+                )}
+            </nav>
+
+            <div className="mt-auto space-y-2 flex flex-col items-center">
+                <button className="p-3 text-sidebar-foreground/50 hover:text-primary transition-all duration-300 hover:scale-110">
+                    <Bell className="w-5 h-5" />
+                </button>
+                <button onClick={() => setView(ViewMode.SETTINGS)} className="p-3 text-sidebar-foreground/50 hover:text-primary transition-all duration-300 hover:scale-110" title="Configurações">
+                    <Settings className="w-5 h-5" />
+                </button>
+                <button
+                    onClick={() => setAuthState('SELECT')}
+                    className="p-3 text-sidebar-foreground/50 hover:text-primary transition-all duration-300 flex flex-col items-center gap-1 hover:scale-110"
+                    title="Voltar"
+                >
+                    <ArrowRight className="w-5 h-5 rotate-180" />
+                    <span className="text-[10px] font-bold">Log Out</span>
+                </button>
+            </div>
+        </aside>
+    );
+};
+
