@@ -285,12 +285,33 @@ export const NOTEBOOK_RAW_TEXT = `1 DE 28 * 60 TB
 export function parseCuttingTextToList(rawText: string, defaultMaterial = 'MDF 15 BRANCO TX'): CutPiece[] {
   if (!rawText || typeof rawText !== 'string') return [];
   
-  const lines = rawText.split(/[\r\n]+/).map(l => l.trim()).filter(Boolean);
+  // Normaliza quebras de linha e quebra por linhas ou delimitadores comuns
+  const normalized = rawText
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n');
+
+  const rawLines = normalized.split('\n');
+  const processedLines: string[] = [];
+
+  for (const rawLine of rawLines) {
+    const line = rawLine.trim();
+    if (!line) continue;
+
+    // Se houver múltiplos itens separados por ';' ou '|' na mesma linha
+    if (line.includes(';') || line.includes('|')) {
+      const parts = line.split(/[;|]+/).map(p => p.trim()).filter(Boolean);
+      processedLines.push(...parts);
+    } else {
+      processedLines.push(line);
+    }
+  }
+
   const result: CutPiece[] = [];
   let currentModule = '';
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
+  for (let i = 0; i < processedLines.length; i++) {
+    let line = processedLines[i].trim();
+    if (!line) continue;
 
     if (/^(p[aá]gina|data|cliente|relat[oó]rio|ordem|projeto|pedid)/i.test(line)) {
       continue;
@@ -301,22 +322,41 @@ export function parseCuttingTextToList(rawText: string, defaultMaterial = 'MDF 1
       continue;
     }
 
-    // Padrão 1: "1 DE 28 * 60 TB" ou "2 DE 72 X 60 LAT" ou "4 DE 57 * 18,5 FRENTE" ou "2 - 72 * 60 LAT" ou "1 28 60 TB"
-    const match1 = line.match(/^(\d+)\s*(?:DE|X|UN|PCS?|PE[CÇ]AS?)?\s*[:\-]?\s*(\d+(?:[.,]\d+)?)\s*[\*xX\u00D7/ ]\s*(\d+(?:[.,]\d+)?)\s*(.*)$/i);
+    // Remove marcadores de lista, numeração ou pontuação no início da linha (ex: "1.", "1 -", "1)", "•", "[1]", "Item 1:")
+    line = line.replace(/^(?:item\s*\d+[:\-]?|\[\d+\]|\d+[\.\)\-]\s+|[•\-\*\>\|]\s*)/i, '').trim();
 
-    // Padrão 2: "Lateral 2x 720 x 600" ou "Porta - 1 de 75 x 28.9"
-    const match2 = !match1 ? line.match(/^([a-zA-ZÀ-ÿ\s\.\-_/]+?)\s*[:\-]?\s*(\d+)\s*(?:DE|X|UN)?\s*[:\-]?\s*(\d+(?:[.,]\d+)?)\s*[\*xX\u00D7/ ]\s*(\d+(?:[.,]\d+)?)$/i) : null;
+    // Normaliza separadores de multiplicação / dimensão (ex: '72 * 60', '72 x 60', '72 X 60', '72 por 60')
+    line = line.replace(/\s+(?:por|\u00D7)\s+/gi, ' * ');
 
-    // Padrão 3: "Lateral 720 600 2" ou "720 x 600 x 2 Lateral"
-    const match3 = (!match1 && !match2) ? line.match(/^([a-zA-ZÀ-ÿ\s\.\-_/]+?)\s*[:\-]?\s*(\d+(?:[.,]\d+)?)\s*[\*xX\u00D7/|\s]\s*(\d+(?:[.,]\d+)?)\s*[\*xX\u00D7/|\s]\s*(\d+)\s*(?:UN|PCS?|PE[CÇ]AS?)?$/i) : null;
+    // Padrão 1: "1 DE 28 * 60 TB" ou "2 DE 72 X 60 LAT" ou "4 DE 57 * 18,5 FRENTE" ou "15 PÇS 72 * 60 LAT"
+    // ou "2 - 72 * 60 LAT" ou "1 28 60 TB" ou "15 PÇS DE 72 X 60"
+    const match1 = line.match(/^(\d+)\s*(?:DE|X|UN|UND|PCS?|P[CÇ]S?|PE[CÇ]AS?)?\s*(?:DE\s*)?[:\-]?\s*(\d+(?:[.,]\d+)?)\s*[\*xX\u00D7/ ]\s*(\d+(?:[.,]\d+)?)\s*(.*)$/i);
 
-    // Padrão 4: "83.5 * 60 TB - 2 un" ou "28 * 60 TB" ou "600 x 445 (2x)"
-    const match4 = (!match1 && !match2 && !match3) ? line.match(/^(\d+(?:[.,]\d+)?)\s*[\*xX\u00D7/ ]\s*(\d+(?:[.,]\d+)?)\s*(?:[-–—xX*]?\s*(\d+)\s*(?:un|pcs?|pe[cç]as?|\b)?)?\s*(.*)$/i) : null;
+    // Padrão 2: "Lateral 2x 720 x 600" ou "Porta - 1 de 75 x 28.9" ou "LAT 2 DE 72 * 60"
+    const match2 = !match1 ? line.match(/^([a-zA-ZÀ-ÿ\s\.\-_/]+?)\s*[:\-]?\s*(\d+)\s*(?:DE|X|UN|UND|PCS?|P[CÇ]S?|PE[CÇ]AS?)?\s*(?:DE\s*)?[:\-]?\s*(\d+(?:[.,]\d+)?)\s*[\*xX\u00D7/ ]\s*(\d+(?:[.,]\d+)?)$/i) : null;
 
-    // Padrão 5: Tabela com delimitadores (ex: "Porta | 750 | 289 | 2" ou Promob export)
-    const match5 = (!match1 && !match2 && !match3 && !match4 && (line.includes('|') || line.includes('\t') || line.includes(';')))
-      ? line.split(/[|\t;]+/).map(c => c.trim()).filter(Boolean)
+    // Padrão 3: "Lateral 720 600 2" ou "720 x 600 x 2 Lateral" ou "LATERAL 72 60 2 UN"
+    const match3 = (!match1 && !match2) ? line.match(/^([a-zA-ZÀ-ÿ\s\.\-_/]+?)\s*[:\-]?\s*(\d+(?:[.,]\d+)?)\s*[\*xX\u00D7/|\s]\s*(\d+(?:[.,]\d+)?)\s*[\*xX\u00D7/|\s]\s*(\d+)\s*(?:UN|UND|PCS?|P[CÇ]S?|PE[CÇ]AS?)?$/i) : null;
+
+    // Padrão 4: "83.5 * 60 TB - 2 un" ou "28 * 60 TB" ou "600 x 445 (2x)" ou "72 * 60 - 2 LAT"
+    const match4 = (!match1 && !match2 && !match3) ? line.match(/^(\d+(?:[.,]\d+)?)\s*[\*xX\u00D7/ ]\s*(\d+(?:[.,]\d+)?)\s*(?:[-–—xX*]?\s*(\d+)\s*(?:un|und|pcs?|p[cç]s?|pe[cç]as?|\b)?)?\s*(.*)$/i) : null;
+
+    // Padrão 5: Tabela delimitada (tabs, vírgulas ou ponto-e-vírgula)
+    const match5 = (!match1 && !match2 && !match3 && !match4 && (line.includes('\t') || line.includes(';')))
+      ? line.split(/[\t;]+/).map(c => c.trim()).filter(Boolean)
       : null;
+
+    // Padrão 6 (Resgate Inteligente): extrai linha com 2 ou 3 números mesmo com ruído de OCR
+    let match6: { numbers: number[]; text: string } | null = null;
+    if (!match1 && !match2 && !match3 && !match4 && !match5) {
+      const allNumbers = line.match(/\b\d+(?:[.,]\d+)?\b/g);
+      if (allNumbers && allNumbers.length >= 2) {
+        match6 = {
+          numbers: allNumbers.map(n => parseFloat(n.replace(',', '.'))),
+          text: line.replace(/\b\d+(?:[.,]\d+)?\b/g, '').replace(/[:\-*xX/]/g, ' ').trim()
+        };
+      }
+    }
 
     let qty = 1;
     let dim1 = 0;
@@ -351,6 +391,24 @@ export function parseCuttingTextToList(rawText: string, defaultMaterial = 'MDF 1
         dim2 = numbers[1];
         qty = numbers[2] ? Math.round(numbers[2]) : 1;
         rawName = textParts.join(' ') || '';
+      }
+    } else if (match6) {
+      const nums = match6.numbers.filter(n => n > 0);
+      if (nums.length >= 2) {
+        if (nums.length >= 3 && nums[0] <= 50 && nums[1] > 10 && nums[2] > 10) {
+          qty = Math.round(nums[0]);
+          dim1 = nums[1];
+          dim2 = nums[2];
+        } else if (nums.length >= 3 && nums[2] <= 50 && nums[0] > 10 && nums[1] > 10) {
+          dim1 = nums[0];
+          dim2 = nums[1];
+          qty = Math.round(nums[2]);
+        } else {
+          dim1 = nums[0];
+          dim2 = nums[1];
+          qty = 1;
+        }
+        rawName = match6.text;
       }
     }
 
@@ -4848,7 +4906,7 @@ export const CuttingPlanModule: React.FC<CuttingPlanModuleProps> = ({
               
               {/* Banner da Foto Capturada */}
               {capturedPhotoUrl && (
-                <div className="bg-[#181a24] border border-amber-500/40 rounded-2xl p-3 flex items-center justify-between gap-3 shadow-md">
+                <div className="bg-[#181a24] border border-amber-500/40 rounded-2xl p-3 flex flex-wrap items-center justify-between gap-3 shadow-md">
                   <div className="flex items-center gap-3">
                     <img
                       src={capturedPhotoUrl}
@@ -4857,20 +4915,38 @@ export const CuttingPlanModule: React.FC<CuttingPlanModuleProps> = ({
                     />
                     <div>
                       <div className="text-xs font-black text-amber-300 flex items-center gap-1.5">
-                        <Camera className="w-3.5 h-3.5 text-amber-400" /> Foto da Folha / Caderno
+                        <Camera className="w-3.5 h-3.5 text-amber-400" /> Foto da Folha / Caderno ({candidatePieces.length} itens • {candidateStats.counts.ALL.units} peças totais)
                       </div>
                       <div className="text-[11px] text-gray-300 leading-tight">
                         Peças lidas da sua foto. Você pode ajustar quantidades com [+] e [−] ou adicionar medidas faltantes.
                       </div>
                     </div>
                   </div>
-                  <label
-                    htmlFor="cutting-camera-input"
-                    className="cursor-pointer bg-white/10 hover:bg-white/20 text-white font-bold text-xs px-3 py-1.5 rounded-xl shrink-0 transition-all flex items-center gap-1.5 select-none"
-                  >
-                    <Camera className="w-3.5 h-3.5" />
-                    <span>Tirar Outra Foto</span>
-                  </label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const candidateList = NOTEBOOK_PIECES.slice(0, 15).map((p, idx) => ({
+                          ...p,
+                          id: `p15-${idx}-${Date.now()}`
+                        }));
+                        setCandidatePieces(candidateList);
+                        setSelectedPieceIds(new Set(candidateList.map(p => p.id)));
+                        setActiveCategoryFilter('ALL');
+                        toast({ title: '📋 Lista Completa de 15 Peças Carregada!', description: '15 peças prontas para você selecionar e cortar.' });
+                      }}
+                      className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 font-bold text-xs px-3 py-1.5 rounded-xl shrink-0 transition-all flex items-center gap-1.5"
+                    >
+                      <span>📋 Carregar 15 Peças Padrão</span>
+                    </button>
+                    <label
+                      htmlFor="cutting-camera-input"
+                      className="cursor-pointer bg-white/10 hover:bg-white/20 text-white font-bold text-xs px-3 py-1.5 rounded-xl shrink-0 transition-all flex items-center gap-1.5 select-none"
+                    >
+                      <Camera className="w-3.5 h-3.5" />
+                      <span>Tirar Outra Foto</span>
+                    </label>
+                  </div>
                 </div>
               )}
               
