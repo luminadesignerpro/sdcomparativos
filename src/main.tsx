@@ -4,14 +4,19 @@ import "./index.css";
 
 createRoot(document.getElementById("root")!).render(<App />);
 
-// Service worker registration disabled for Capacitor build to prevent black screen
-// But we must explicitly UNREGISTER any old service workers that might be stuck caching old broken versions
+// Limpa service workers e caches legados para garantir que novas atualizacoes carreguem de imediato
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistrations().then((registrations) => {
     for (let registration of registrations) {
       registration.unregister();
     }
-  }).catch((err) => {
-    console.error('Service Worker unregistration failed: ', err);
-  });
+  }).catch(() => {});
 }
+if ('caches' in window) {
+  caches.keys().then((names) => {
+    for (let name of names) {
+      caches.delete(name);
+    }
+  }).catch(() => {});
+}
+
