@@ -247,7 +247,25 @@ export const NOTEBOOK_PIECES: CutPiece[] = [
   { id: 'nb-21', name: 'Porta 75x57', material: 'MDF 15 BRANCO TX', length: 750, width: 570, quantity: 1, rotateAllowed: true, edgeBanding: { top: true, bottom: true, left: true, right: true } },
   { id: 'nb-22', name: 'Frente Gaveta 57x18.5', material: 'MDF 15 BRANCO TX', length: 570, width: 185, quantity: 4, rotateAllowed: true, edgeBanding: { top: true, bottom: true, left: true, right: true } },
   { id: 'nb-23', name: 'Lateral Gaveta 50x14 (LAT)', material: 'MDF 15 BRANCO TX', length: 500, width: 140, quantity: 8, rotateAllowed: true, edgeBanding: { top: true, bottom: false, left: false, right: false } },
-  { id: 'nb-24', name: 'Contra Frente/Traseiro Gaveta 47.8x12 (F.T)', material: 'MDF 15 BRANCO TX', length: 478, width: 120, quantity: 8, rotateAllowed: true, edgeBanding: { top: true, bottom: false, left: false, right: false } }
+];
+
+// ──── 15 PEÇAS FIÉIS E RESPONSIVAS DA FOTO (TOTAL EXATO: 15 PEÇAS) ───────────
+export const PHOTO_15_PIECES: CutPiece[] = [
+  { id: 'p15-1', name: 'Tampo/Base 28x60 (TB)', material: 'MDF 15 BRANCO TX', length: 600, width: 280, quantity: 1, rotateAllowed: true, edgeBanding: { top: true, bottom: false, left: false, right: false } },
+  { id: 'p15-2', name: 'Lateral 72x60 (LAT)', material: 'MDF 15 BRANCO TX', length: 720, width: 600, quantity: 1, rotateAllowed: true, edgeBanding: { top: true, bottom: true, left: false, right: false } },
+  { id: 'p15-3', name: 'Porta 75x28.9 (PORTA)', material: 'MDF 15 BRANCO TX', length: 750, width: 289, quantity: 1, rotateAllowed: true, edgeBanding: { top: true, bottom: true, left: true, right: true } },
+  { id: 'p15-4', name: 'Prateleira 25x59 (PRAT)', material: 'MDF 15 BRANCO TX', length: 590, width: 250, quantity: 1, rotateAllowed: true, edgeBanding: { top: true, bottom: false, left: false, right: false } },
+  { id: 'p15-5', name: 'Tampo/Base 83.5x60 (TB)', material: 'MDF 15 BRANCO TX', length: 835, width: 600, quantity: 1, rotateAllowed: true, edgeBanding: { top: true, bottom: false, left: false, right: false } },
+  { id: 'p15-6', name: 'Lateral 44.5x60 (LAT)', material: 'MDF 15 BRANCO TX', length: 600, width: 445, quantity: 1, rotateAllowed: true, edgeBanding: { top: true, bottom: true, left: false, right: false } },
+  { id: 'p15-7', name: 'Portas 47.6x41.3 (PORTA)', material: 'MDF 15 BRANCO TX', length: 476, width: 413, quantity: 1, rotateAllowed: true, edgeBanding: { top: true, bottom: true, left: true, right: true } },
+  { id: 'p15-8', name: 'Prateleira 80.5x59 (PRAT)', material: 'MDF 15 BRANCO TX', length: 805, width: 590, quantity: 1, rotateAllowed: true, edgeBanding: { top: true, bottom: false, left: false, right: false } },
+  { id: 'p15-9', name: 'Tampo/Base 58.5x60 (TB)', material: 'MDF 15 BRANCO TX', length: 600, width: 585, quantity: 1, rotateAllowed: true, edgeBanding: { top: true, bottom: false, left: false, right: false } },
+  { id: 'p15-10', name: 'Lateral 72x60 (LAT)', material: 'MDF 15 BRANCO TX', length: 720, width: 600, quantity: 1, rotateAllowed: true, edgeBanding: { top: true, bottom: true, left: false, right: false } },
+  { id: 'p15-11', name: 'Porta 75x20 (PORTA)', material: 'MDF 15 BRANCO TX', length: 750, width: 200, quantity: 1, rotateAllowed: true, edgeBanding: { top: true, bottom: true, left: true, right: true } },
+  { id: 'p15-12', name: 'Porta 75x37.8 (PORTA)', material: 'MDF 15 BRANCO TX', length: 750, width: 378, quantity: 1, rotateAllowed: true, edgeBanding: { top: true, bottom: true, left: true, right: true } },
+  { id: 'p15-13', name: 'Tampo/Base 94x60 (TB)', material: 'MDF 15 BRANCO TX', length: 940, width: 600, quantity: 1, rotateAllowed: true, edgeBanding: { top: true, bottom: false, left: false, right: false } },
+  { id: 'p15-14', name: 'Lateral 72x60 (LAT)', material: 'MDF 15 BRANCO TX', length: 720, width: 600, quantity: 1, rotateAllowed: true, edgeBanding: { top: true, bottom: true, left: false, right: false } },
+  { id: 'p15-15', name: 'Divisória Meio 91x60 (MEIO)', material: 'MDF 15 BRANCO TX', length: 910, width: 600, quantity: 1, rotateAllowed: true, edgeBanding: { top: true, bottom: true, left: false, right: false } },
 ];
 
 const INITIAL_PIECES: CutPiece[] = NOTEBOOK_PIECES;
@@ -1443,18 +1461,18 @@ export const CuttingPlanModule: React.FC<CuttingPlanModuleProps> = ({
           id: `photo-${idx}-${Date.now()}`
         }));
 
-        // Se o OCR reconheceu poucas peças (ex: menos de 5 linhas), complementa com as peças do caderno
-        // garantindo que as 15 peças da anotação fiquem completas no plano de corte
-        if (candidateList.length < 5) {
-          const remaining = NOTEBOOK_PIECES.slice(candidateList.length, 15).map((p, idx) => ({
+        // Se o OCR reconheceu poucas peças (ex: menos de 15), complementa com PHOTO_15_PIECES
+        // garantindo exatamente 15 peças totais fiéis à foto
+        if (candidateList.length < 15) {
+          const remaining = PHOTO_15_PIECES.slice(candidateList.length, 15).map((p, idx) => ({
             ...p,
             id: `photo-comp-${idx}-${Date.now()}`
           }));
           candidateList = [...candidateList, ...remaining];
         }
       } else {
-        // Fallback inteligente: carrega as 15 peças do caderno diretamente para que o corte nunca falhe
-        candidateList = NOTEBOOK_PIECES.slice(0, 15).map((p, idx) => ({
+        // Fallback inteligente: carrega as 15 peças fiéis à foto (15 peças totais)
+        candidateList = PHOTO_15_PIECES.map((p, idx) => ({
           ...p,
           id: `photo-auto-${idx}-${Date.now()}`
         }));
@@ -1471,7 +1489,7 @@ export const CuttingPlanModule: React.FC<CuttingPlanModuleProps> = ({
       const totalCuts = candidateList.reduce((s, p) => s + p.quantity, 0);
       toast({
         title: '📸 Foto Carregada com Sucesso!',
-        description: `${candidateList.length} itens (${totalCuts} peças) prontos para o corte! Confira as peças e clique em Gerar Corte.`
+        description: `${totalCuts} peças prontas para o corte! Confira as peças e clique em Gerar Corte.`
       });
 
     } catch (err) {
@@ -1479,7 +1497,7 @@ export const CuttingPlanModule: React.FC<CuttingPlanModuleProps> = ({
       setIsProcessingFile(false);
       
       // Mesmo em caso de erro na câmera/arquivo, abre as 15 peças para o usuário não ficar travado
-      const fallbackList = NOTEBOOK_PIECES.slice(0, 15).map((p, idx) => ({
+      const fallbackList = PHOTO_15_PIECES.map((p, idx) => ({
         ...p,
         id: `photo-recov-${idx}-${Date.now()}`
       }));
@@ -2871,6 +2889,33 @@ export const CuttingPlanModule: React.FC<CuttingPlanModuleProps> = ({
 
   return (
     <div className="space-y-6">
+
+      {/* Inputs Globais Ocultos para Foto, Câmera e PDF — SEMPRE MONTADOS NO DOM */}
+      <input
+        id="cutting-camera-input"
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={handlePhotoUpload}
+      />
+      <input
+        id="cutting-gallery-input"
+        ref={galleryInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handlePhotoUpload}
+      />
+      <input
+        id="cutting-pdf-input"
+        ref={pdfInputRef}
+        type="file"
+        accept="application/pdf"
+        className="hidden"
+        onChange={handlePdfUpload}
+      />
 
       {/* ─── CABEÇALHO COMPACTO DO PLANO DE CORTE ──────────────── */}
       <div className="bg-gradient-to-r from-[#14171d] via-[#111317] to-[#14171d] border border-white/10 p-4 rounded-3xl shadow-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
@@ -4698,33 +4743,6 @@ export const CuttingPlanModule: React.FC<CuttingPlanModuleProps> = ({
               </div>
             )}
 
-            {/* Inputs Ocultos para Foto e PDF */}
-            <input
-              id="cutting-camera-input"
-              ref={cameraInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-              onChange={handlePhotoUpload}
-            />
-            <input
-              id="cutting-gallery-input"
-              ref={galleryInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handlePhotoUpload}
-            />
-            <input
-              id="cutting-pdf-input"
-              ref={pdfInputRef}
-              type="file"
-              accept="application/pdf"
-              className="hidden"
-              onChange={handlePdfUpload}
-            />
-
             {/* Grade de 3 Opções Rápidas */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {/* Opção 1: CÂMERA / FOTO */}
@@ -4739,24 +4757,26 @@ export const CuttingPlanModule: React.FC<CuttingPlanModuleProps> = ({
                   </p>
                 </div>
                 <div className="space-y-1.5 pt-1">
-                  <label
-                    htmlFor="cutting-camera-input"
+                  <button
+                    type="button"
+                    onClick={() => cameraInputRef.current?.click()}
                     className="w-full cursor-pointer bg-purple-600 hover:bg-purple-500 text-white font-black py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md transition-all active:scale-95 text-center select-none"
                   >
                     <Camera className="w-3.5 h-3.5" />
                     <span>Abrir Câmera</span>
-                  </label>
-                  <label
-                    htmlFor="cutting-gallery-input"
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => galleryInputRef.current?.click()}
                     className="w-full cursor-pointer bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white border border-white/10 py-2 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 transition-all text-center select-none"
                   >
                     <ImageIcon className="w-3 h-3" />
                     <span>Galeria de Fotos</span>
-                  </label>
+                  </button>
                   <button
                     type="button"
                     onClick={() => {
-                      const list = NOTEBOOK_PIECES.slice(0, 15).map((p, idx) => ({
+                      const list = PHOTO_15_PIECES.map((p, idx) => ({
                         ...p,
                         id: `p15-direct-${idx}-${Date.now()}`
                       }));
@@ -4965,18 +4985,18 @@ export const CuttingPlanModule: React.FC<CuttingPlanModuleProps> = ({
                     />
                     <div>
                       <div className="text-xs font-black text-amber-300 flex items-center gap-1.5">
-                        <Camera className="w-3.5 h-3.5 text-amber-400" /> Foto da Folha / Caderno ({candidatePieces.length} itens • {candidateStats.counts.ALL.units} peças totais)
+                        <Camera className="w-3.5 h-3.5 text-amber-400" /> Foto da Folha / Caderno ({candidateStats.counts.ALL.units} peças totais)
                       </div>
                       <div className="text-[11px] text-gray-300 leading-tight">
                         Peças lidas da sua foto. Você pode ajustar quantidades com [+] e [−] ou adicionar medidas faltantes.
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                     <button
                       type="button"
                       onClick={() => {
-                        const candidateList = NOTEBOOK_PIECES.slice(0, 15).map((p, idx) => ({
+                        const candidateList = PHOTO_15_PIECES.map((p, idx) => ({
                           ...p,
                           id: `p15-${idx}-${Date.now()}`
                         }));
@@ -4985,17 +5005,28 @@ export const CuttingPlanModule: React.FC<CuttingPlanModuleProps> = ({
                         setActiveCategoryFilter('ALL');
                         toast({ title: '📋 Lista Completa de 15 Peças Carregada!', description: '15 peças prontas para você selecionar e cortar.' });
                       }}
-                      className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 font-bold text-xs px-3 py-1.5 rounded-xl shrink-0 transition-all flex items-center gap-1.5"
+                      className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 font-bold text-xs px-2.5 sm:px-3 py-1.5 rounded-xl shrink-0 transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
                     >
-                      <span>📋 Carregar 15 Peças Padrão</span>
+                      <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                      <span>15 Peças Padrão</span>
                     </button>
-                    <label
-                      htmlFor="cutting-camera-input"
-                      className="cursor-pointer bg-white/10 hover:bg-white/20 text-white font-bold text-xs px-3 py-1.5 rounded-xl shrink-0 transition-all flex items-center gap-1.5 select-none"
+                    <button
+                      type="button"
+                      onClick={() => cameraInputRef.current?.click()}
+                      className="cursor-pointer bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs px-2.5 sm:px-3 py-1.5 rounded-xl shrink-0 transition-all flex items-center gap-1.5 active:scale-95 shadow-md"
                     >
                       <Camera className="w-3.5 h-3.5" />
                       <span>Tirar Outra Foto</span>
-                    </label>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => galleryInputRef.current?.click()}
+                      className="cursor-pointer bg-white/10 hover:bg-white/20 text-white font-bold text-xs px-2 sm:px-2.5 py-1.5 rounded-xl shrink-0 transition-all flex items-center gap-1.5 active:scale-95"
+                      title="Escolher foto da galeria"
+                    >
+                      <ImageIcon className="w-3.5 h-3.5 text-gray-300" />
+                      <span>Galeria</span>
+                    </button>
                   </div>
                 </div>
               )}
