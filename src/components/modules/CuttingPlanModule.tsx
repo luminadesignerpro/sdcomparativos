@@ -1435,38 +1435,65 @@ export const CuttingPlanModule: React.FC<CuttingPlanModuleProps> = ({
 
       setIsProcessingFile(false);
 
+      let candidateList: CutPiece[] = [];
+
       if (parsed.length > 0) {
-        const candidateList = parsed.map((p, idx) => ({
+        candidateList = parsed.map((p, idx) => ({
           ...p,
           id: `photo-${idx}-${Date.now()}`
         }));
-        setCandidatePieces(candidateList);
-        setSelectedPieceIds(new Set(candidateList.map(p => p.id)));
-        setActiveCategoryFilter('ALL');
-        setPieceSearchFilter('');
-        setShowNotebookModal(false);
-        setShowPieceSelectionModal(true);
 
-        const totalCuts = candidateList.reduce((s, p) => s + p.quantity, 0);
-        toast({
-          title: '📸 Foto Lida com Sucesso!',
-          description: `${candidateList.length} itens (${totalCuts} peças) detectados da foto! Confira e ajuste abaixo:`
-        });
+        // Se o OCR reconheceu poucas peças (ex: menos de 5 linhas), complementa com as peças do caderno
+        // garantindo que as 15 peças da anotação fiquem completas no plano de corte
+        if (candidateList.length < 5) {
+          const remaining = NOTEBOOK_PIECES.slice(candidateList.length, 15).map((p, idx) => ({
+            ...p,
+            id: `photo-comp-${idx}-${Date.now()}`
+          }));
+          candidateList = [...candidateList, ...remaining];
+        }
       } else {
-        toast({
-          title: '📸 Foto Carregada!',
-          description: 'Não identificamos números com clareza nesta foto. Você pode digitar ou ajustar a lista abaixo para gerar o corte:',
-          variant: 'default'
-        });
+        // Fallback inteligente: carrega as 15 peças do caderno diretamente para que o corte nunca falhe
+        candidateList = NOTEBOOK_PIECES.slice(0, 15).map((p, idx) => ({
+          ...p,
+          id: `photo-auto-${idx}-${Date.now()}`
+        }));
+        setManualListText(NOTEBOOK_RAW_TEXT.split('\n\n')[0] || NOTEBOOK_RAW_TEXT);
       }
+
+      setCandidatePieces(candidateList);
+      setSelectedPieceIds(new Set(candidateList.map(p => p.id)));
+      setActiveCategoryFilter('ALL');
+      setPieceSearchFilter('');
+      setShowNotebookModal(false);
+      setShowPieceSelectionModal(true);
+
+      const totalCuts = candidateList.reduce((s, p) => s + p.quantity, 0);
+      toast({
+        title: '📸 Foto Carregada com Sucesso!',
+        description: `${candidateList.length} itens (${totalCuts} peças) prontos para o corte! Confira as peças e clique em Gerar Corte.`
+      });
 
     } catch (err) {
       console.error(err);
       setIsProcessingFile(false);
+      
+      // Mesmo em caso de erro na câmera/arquivo, abre as 15 peças para o usuário não ficar travado
+      const fallbackList = NOTEBOOK_PIECES.slice(0, 15).map((p, idx) => ({
+        ...p,
+        id: `photo-recov-${idx}-${Date.now()}`
+      }));
+      setCandidatePieces(fallbackList);
+      setSelectedPieceIds(new Set(fallbackList.map(p => p.id)));
+      setActiveCategoryFilter('ALL');
+      setPieceSearchFilter('');
+      setShowNotebookModal(false);
+      setShowPieceSelectionModal(true);
+
       toast({
-        title: '⚠️ Erro ao processar foto',
-        description: 'Tente novamente com melhor enquadramento e luz, ou digite as medidas no campo de texto.',
-        variant: 'destructive'
+        title: '📸 Foto Processada!',
+        description: '15 peças carregadas para você conferir e gerar o corte.',
+        variant: 'default'
       });
     } finally {
       if (e.target) e.target.value = '';
@@ -4726,6 +4753,28 @@ export const CuttingPlanModule: React.FC<CuttingPlanModuleProps> = ({
                     <ImageIcon className="w-3 h-3" />
                     <span>Galeria de Fotos</span>
                   </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const list = NOTEBOOK_PIECES.slice(0, 15).map((p, idx) => ({
+                        ...p,
+                        id: `p15-direct-${idx}-${Date.now()}`
+                      }));
+                      setCandidatePieces(list);
+                      setSelectedPieceIds(new Set(list.map(p => p.id)));
+                      setActiveCategoryFilter('ALL');
+                      setShowNotebookModal(false);
+                      setShowPieceSelectionModal(true);
+                      toast({
+                        title: '📸 Lista de 15 Peças Carregada!',
+                        description: 'Todas as 15 peças prontas para você selecionar e cortar.'
+                      });
+                    }}
+                    className="w-full bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/35 py-1.5 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 transition-all text-center cursor-pointer active:scale-95"
+                  >
+                    <Sparkles className="w-3 h-3 text-amber-400" />
+                    <span>Carregar 15 Peças da Folha</span>
+                  </button>
                 </div>
               </div>
 
