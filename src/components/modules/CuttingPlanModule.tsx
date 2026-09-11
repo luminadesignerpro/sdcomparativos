@@ -3018,15 +3018,6 @@ export const CuttingPlanModule: React.FC<CuttingPlanModuleProps> = ({
               <span>Salvar Plano de Corte</span>
             </button>
 
-            {/* 5. ✨ Organizar Peças */}
-            <button
-              onClick={handleAutoOrganizePieces}
-              className="bg-[#00a86b] hover:bg-[#00c97f] text-white font-black px-5 py-2.5 rounded-2xl sm:rounded-full text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg transition-all hover:scale-[1.02] border border-emerald-300/40"
-              title="Reotimizar com máximo aproveitamento e menor sobra"
-            >
-              <Sparkles className="w-4 h-4 text-yellow-300" />
-              <span>Organizar Peças</span>
-            </button>
 
             {/* 2. 📷 📋 Peças do Caderno (Foto / PDF) */}
             <button
@@ -3680,6 +3671,16 @@ export const CuttingPlanModule: React.FC<CuttingPlanModuleProps> = ({
                       ))}
                     </div>
                   )}
+
+                  <button
+                    type="button"
+                    onClick={handleAutoOrganizePieces}
+                    className="bg-[#00a86b] hover:bg-[#00c97f] text-white font-black px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow-md transition-all active:scale-95 border border-emerald-300/40"
+                    title="Reotimizar e organizar peças com máximo aproveitamento"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-yellow-300" />
+                    <span>Organizar Peças</span>
+                  </button>
 
                   <button
                     type="button"
