@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -6,9 +6,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import SuppliersPage from "@/components/modules/SuppliersPage";
 import { SDLoginScreen } from "@/components/auth/SDLoginScreen";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { Layers, Scale, Sparkles, ShoppingBag, LogOut, User, Shield } from "lucide-react";
+import { Layers, LogOut, User } from "lucide-react";
 import appLogo from "@/assets/logo-sd.png";
-import bannerSVG from "@/assets/banner.svg";
+import { UpdateButton } from "@/components/common/UpdateButton";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -85,10 +85,13 @@ const SDComparativoApp: React.FC = () => {
 
           {/* Ações do Usuário & Logout — 100% visível em mobile e desktop */}
           <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+            {/* Botão de Atualização com Notificação */}
+            <UpdateButton />
+
             <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/60 text-xs text-slate-300">
               <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
               <User className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-              <span className="font-semibold text-white truncate max-w-[80px] sm:max-w-[120px]">{currentUser}</span>
+              <span className="font-semibold text-white truncate max-w-[70px] sm:max-w-[120px]">{currentUser}</span>
             </div>
 
             <button
