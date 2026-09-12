@@ -1417,6 +1417,129 @@ export const CuttingPlanModule: React.FC<CuttingPlanModuleProps> = ({
   const [newClientCleanPlan, setNewClientCleanPlan] = useState<boolean>(true);
   const [editingPieceModalSearch, setEditingPieceModalSearch] = useState<string>('');
 
+  // ──── ESTADOS & FUNÇÕES: ADICIONAR QUANTAS PEÇAS QUISER (EM TABELA OU TEXTO) ────
+  const [showMultiAddPiecesModal, setShowMultiAddPiecesModal] = useState<boolean>(false);
+  const [multiAddPiecesTab, setMultiAddPiecesTab] = useState<'table' | 'text'>('table');
+  const [multiAddMaterial, setMultiAddMaterial] = useState<string>('MDF 15 BRANCO TX');
+  const [multiAddText, setMultiAddText] = useState<string>('');
+  const [multiAddRows, setMultiAddRows] = useState<Array<{
+    id: string;
+    name: string;
+    length: string;
+    width: string;
+    quantity: number;
+    rotateAllowed: boolean;
+    edgeBanding: { top: boolean; bottom: boolean; left: boolean; right: boolean };
+  }>>([
+    {
+      id: 'row-1',
+      name: 'Lateral',
+      length: '720',
+      width: '600',
+      quantity: 1,
+      rotateAllowed: true,
+      edgeBanding: { top: true, bottom: true, left: false, right: false },
+    },
+    {
+      id: 'row-2',
+      name: 'Tampo/Base',
+      length: '800',
+      width: '600',
+      quantity: 1,
+      rotateAllowed: true,
+      edgeBanding: { top: true, bottom: false, left: false, right: false },
+    },
+    {
+      id: 'row-3',
+      name: 'Porta',
+      length: '750',
+      width: '400',
+      quantity: 1,
+      rotateAllowed: true,
+      edgeBanding: { top: true, bottom: true, left: true, right: true },
+    },
+  ]);
+
+  const handleAddRowToMulti = (count = 1, defaultName = '') => {
+    const defaultLen = unit === 'm' ? '0.70' : unit === 'cm' ? '70' : '700';
+    const defaultWid = unit === 'm' ? '0.45' : unit === 'cm' ? '45' : '450';
+    const newRows = Array.from({ length: count }).map((_, i) => ({
+      id: `row-${Date.now()}-${Math.random().toString(36).slice(2, 6)}-${i}`,
+      name: defaultName,
+      length: defaultLen,
+      width: defaultWid,
+      quantity: 1,
+      rotateAllowed: true,
+      edgeBanding: { top: true, bottom: false, left: false, right: false },
+    }));
+    setMultiAddRows(prev => [...prev, ...newRows]);
+  };
+
+  const handleUpdateMultiRow = (id: string, field: string, val: any) => {
+    setMultiAddRows(prev => prev.map(r => r.id === id ? { ...r, [field]: val } : r));
+  };
+
+  const handleRemoveMultiRow = (id: string) => {
+    setMultiAddRows(prev => prev.filter(r => r.id !== id));
+  };
+
+  const handleSaveMultiPieces = () => {
+    if (multiAddPiecesTab === 'text') {
+      if (!multiAddText.trim()) {
+        toast({ title: '⚠️ Digite ou cole a lista de peças', variant: 'destructive' });
+        return;
+      }
+      const parsed = parseCuttingTextToList(multiAddText, multiAddMaterial);
+      if (parsed.length === 0) {
+        toast({ title: '⚠️ Nenhuma medida válida identificada no texto', variant: 'destructive' });
+        return;
+      }
+      savePieces([...parsed, ...pieces]);
+      const totalUnits = parsed.reduce((sum, p) => sum + p.quantity, 0);
+      toast({
+        title: '✅ Peças Adicionadas com Sucesso!',
+        description: `${parsed.length} itens (${totalUnits} peças totais) foram incluídos no plano de corte.`
+      });
+      setMultiAddText('');
+      setShowMultiAddPiecesModal(false);
+      return;
+    }
+
+    const validRows = multiAddRows.filter(r => {
+      const len = Number((r.length || '').replace(',', '.'));
+      const wid = Number((r.width || '').replace(',', '.'));
+      return len > 0 && wid > 0;
+    });
+
+    if (validRows.length === 0) {
+      toast({ title: '⚠️ Preencha comprimento e largura de ao menos 1 peça', variant: 'destructive' });
+      return;
+    }
+
+    const newPieces: CutPiece[] = validRows.map((r, idx) => {
+      const lenMM = toMM(Number(r.length.replace(',', '.')));
+      const widMM = toMM(Number(r.width.replace(',', '.')));
+      return {
+        id: `multi-${Date.now()}-${idx}`,
+        name: r.name.trim() || `Peça ${pieces.length + idx + 1}`,
+        material: multiAddMaterial,
+        length: lenMM,
+        width: widMM,
+        quantity: Math.max(1, Number(r.quantity) || 1),
+        rotateAllowed: r.rotateAllowed,
+        edgeBanding: r.edgeBanding
+      };
+    });
+
+    savePieces([...newPieces, ...pieces]);
+    const totalUnits = newPieces.reduce((sum, p) => sum + p.quantity, 0);
+    toast({
+      title: '✅ Peças Adicionadas com Sucesso!',
+      description: `${newPieces.length} itens (${totalUnits} peças totais) foram incluídos no plano de corte.`
+    });
+    setShowMultiAddPiecesModal(false);
+  };
+
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
   const galleryInputRef = useRef<HTMLInputElement | null>(null);
   const pdfInputRef = useRef<HTMLInputElement | null>(null);
@@ -2917,46 +3040,6 @@ export const CuttingPlanModule: React.FC<CuttingPlanModuleProps> = ({
         onChange={handlePdfUpload}
       />
 
-      {/* ─── CABEÇALHO COMPACTO DO PLANO DE CORTE ──────────────── */}
-      <div className="bg-gradient-to-r from-[#14171d] via-[#111317] to-[#14171d] border border-white/10 p-4 rounded-3xl shadow-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-2xl bg-amber-500/15 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0 shadow-md">
-            <Scissors className="w-6 h-6 text-amber-400" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <h2 className="text-lg font-black text-white tracking-wide">
-                Otimizador &amp; Plano de Corte 2D
-              </h2>
-              <span className="bg-amber-500/15 text-amber-300 border border-amber-500/30 px-2.5 py-1 rounded-xl text-xs font-black uppercase flex items-center gap-1.5">
-                <Folder className="w-3.5 h-3.5 text-amber-400" /> Pasta / Cliente: {clientData.name || activeFolderName}
-              </span>
-              <button
-                type="button"
-                onClick={() => setShowNewClientModal(true)}
-                className="bg-amber-500 hover:bg-amber-400 text-black font-black px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow-md transition-all active:scale-95 hover:scale-[1.02]"
-                title="Cadastrar novo cliente e iniciar plano"
-              >
-                <User className="w-3.5 h-3.5" />
-                <span>+ Cadastrar Cliente</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowSavedPlansModal(true)}
-                className="bg-white/10 hover:bg-white/20 text-white font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 border border-white/10 shadow transition-all active:scale-95"
-                title="Ver planos de corte salvos anteriormente"
-              >
-                <FolderOpen className="w-3.5 h-3.5 text-amber-400" />
-                <span>Planos Salvos</span>
-              </button>
-            </div>
-            <p className="text-gray-400 text-xs mt-0.5">
-              Otimização de corte guilhotina de MDF/MDP, mapa visual das chapas e cálculo de fita de borda
-            </p>
-          </div>
-        </div>
-      </div>
-
       {/* ─── CARD UNIFICADO: ADICIONAR PEÇA AO PLANO DE CORTE + BARRA DE AÇÕES ORGANIZADA (ESTILO IMAGEM 1) ─── */}
       <div className="bg-[#121418] border border-amber-500/25 p-4 sm:p-5 rounded-3xl shadow-2xl space-y-4">
         
@@ -3054,15 +3137,12 @@ export const CuttingPlanModule: React.FC<CuttingPlanModuleProps> = ({
               <span>+ Cadastrar Cliente</span>
             </button>
 
-            {/* 2. ➕ Adicionar Peça */}
+            {/* 2. ➕ Adicionar Peça (Quantas Quiser) */}
             <button
               type="button"
-              onClick={() => {
-                setShowAddPieceForm(true);
-                setEditingPieceId(null);
-              }}
-              className="bg-[#2563eb] hover:bg-[#3b82f6] text-white font-black px-5 py-2.5 rounded-2xl sm:rounded-full text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg transition-all hover:scale-[1.02] border border-blue-400/40"
-              title="Adicionar nova peça com medidas, material e fita"
+              onClick={() => setShowMultiAddPiecesModal(true)}
+              className="bg-[#2563eb] hover:bg-[#3b82f6] text-white font-black px-5 py-2.5 rounded-2xl sm:rounded-full text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg transition-all hover:scale-[1.02] border border-blue-400/40 cursor-pointer active:scale-95"
+              title="Adicionar quantas peças quiser ao plano de corte"
             >
               <Plus className="w-4 h-4" />
               <span>+ Adicionar Peça</span>
@@ -5384,6 +5464,317 @@ export const CuttingPlanModule: React.FC<CuttingPlanModuleProps> = ({
                 >
                   <Sparkles className="w-4 h-4 text-yellow-300" />
                   <span>Gerar Plano de Corte ({candidateStats.selectedUnits} Peças)</span>
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL: ADICIONAR QUANTAS PEÇAS QUISER AO PLANO DE CORTE ─── */}
+      {showMultiAddPiecesModal && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 animate-in fade-in zoom-in-95">
+          <div className="bg-[#12141a] border-2 border-blue-500/50 rounded-3xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
+            
+            {/* Header */}
+            <div className="p-4 sm:p-5 border-b border-white/10 flex items-center justify-between bg-[#171922]">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-blue-500/20 border border-blue-500/40 flex items-center justify-center text-blue-400">
+                  <Plus className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-white flex items-center gap-2">
+                    Adicionar Peças ao Plano de Corte
+                    <span className="text-xs font-mono bg-blue-500/20 text-blue-300 px-2.5 py-0.5 rounded-full border border-blue-500/30">
+                      Quantas Quiser
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-gray-400">
+                    Insira quantas peças precisar em tabela ou colando uma lista de texto
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowMultiAddPiecesModal(false)}
+                className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
+                title="Fechar"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Sub-Header: Seleção de Material Padrão & Abas */}
+            <div className="bg-[#151722] border-b border-white/10 p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              {/* Seletor de Material */}
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <span className="text-xs font-bold text-gray-300 shrink-0">Material das Peças:</span>
+                <select
+                  value={multiAddMaterial}
+                  onChange={(e) => setMultiAddMaterial(e.target.value)}
+                  className="bg-[#1b1f2b] border border-blue-400/40 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-400 font-bold max-w-xs cursor-pointer"
+                >
+                  {uniqueMaterials.map(m => (
+                    <option key={`m_${m}`} value={m}>{m}</option>
+                  ))}
+                  {customMaterials.filter(m => !uniqueMaterials.includes(m)).map(m => (
+                    <option key={`cm_${m}`} value={m}>{m}</option>
+                  ))}
+                </select>
+                <span className="text-[11px] text-amber-400 font-bold shrink-0">
+                  Unidade: {unitLabel}
+                </span>
+              </div>
+
+              {/* Alternador de Abas: Tabela vs Texto */}
+              <div className="inline-flex bg-[#101216] border border-white/15 p-1 rounded-xl items-center gap-1 self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setMultiAddPiecesTab('table')}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                    multiAddPiecesTab === 'table'
+                      ? 'bg-blue-600 text-white shadow'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  <Layers className="w-3.5 h-3.5" />
+                  <span>Tabela de Peças ({multiAddRows.length})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMultiAddPiecesTab('text')}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                    multiAddPiecesTab === 'text'
+                      ? 'bg-blue-600 text-white shadow'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>Colar / Digitar Lista</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Conteúdo do Modal */}
+            <div className="p-4 sm:p-5 overflow-y-auto flex-1 custom-scrollbar space-y-4">
+              {multiAddPiecesTab === 'table' ? (
+                <div className="space-y-3">
+                  {/* Botões de Ação Rápida para Adicionar Linhas */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 bg-[#171a25] border border-white/10 p-3 rounded-2xl">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="text-xs font-bold text-gray-300 mr-1">Incluir mais peças:</span>
+                      <button
+                        type="button"
+                        onClick={() => handleAddRowToMulti(1)}
+                        className="bg-blue-600/30 hover:bg-blue-600/50 text-blue-300 border border-blue-400/40 text-xs font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 active:scale-95 transition-all cursor-pointer"
+                      >
+                        <Plus className="w-3 h-3" /> + 1 Peça
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleAddRowToMulti(5)}
+                        className="bg-blue-600/30 hover:bg-blue-600/50 text-blue-300 border border-blue-400/40 text-xs font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 active:scale-95 transition-all cursor-pointer"
+                      >
+                        <Plus className="w-3 h-3" /> + 5 Peças
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleAddRowToMulti(10)}
+                        className="bg-blue-600/30 hover:bg-blue-600/50 text-blue-300 border border-blue-400/40 text-xs font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 active:scale-95 transition-all cursor-pointer"
+                      >
+                        <Plus className="w-3 h-3" /> + 10 Peças
+                      </button>
+                    </div>
+
+                    {/* Sugestões Rápidas de Nomes */}
+                    <div className="flex flex-wrap items-center gap-1 text-[11px]">
+                      <span className="text-gray-400 font-medium">Modelos:</span>
+                      {['Lateral', 'Porta', 'Tampo', 'Prateleira', 'Gaveta', 'Fundo'].map(preset => (
+                        <button
+                          key={preset}
+                          type="button"
+                          onClick={() => handleAddRowToMulti(1, preset)}
+                          className="bg-white/5 hover:bg-white/15 text-gray-300 border border-white/10 px-2 py-0.5 rounded-md hover:text-white transition-colors cursor-pointer"
+                        >
+                          +{preset}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Lista de Linhas */}
+                  <div className="space-y-2.5">
+                    {multiAddRows.map((row, idx) => (
+                      <div
+                        key={row.id}
+                        className="bg-[#171a24] border border-white/10 hover:border-blue-500/40 rounded-2xl p-3 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 transition-all"
+                      >
+                        {/* Identificador & Nome */}
+                        <div className="flex items-center gap-2 w-full md:w-auto flex-1 min-w-[180px]">
+                          <span className="w-6 h-6 rounded-lg bg-white/5 text-gray-400 font-mono text-xs flex items-center justify-center font-bold shrink-0">
+                            {idx + 1}
+                          </span>
+                          <input
+                            type="text"
+                            value={row.name}
+                            onChange={(e) => handleUpdateMultiRow(row.id, 'name', e.target.value)}
+                            placeholder={`Ex: Peça ${idx + 1} (Lateral, Porta...)`}
+                            className="w-full bg-[#12141c] border border-white/15 rounded-xl px-2.5 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-400 font-semibold"
+                          />
+                        </div>
+
+                        {/* Medidas (Comprimento e Largura) e Qtd */}
+                        <div className="flex items-center gap-2 w-full md:w-auto flex-wrap sm:flex-nowrap">
+                          <div className="flex items-center gap-1 bg-[#12141c] border border-white/15 rounded-xl px-2 py-1">
+                            <span className="text-[10px] text-gray-400 font-bold uppercase">C:</span>
+                            <input
+                              type="text"
+                              value={row.length}
+                              onChange={(e) => handleUpdateMultiRow(row.id, 'length', e.target.value)}
+                              placeholder="0"
+                              className="w-16 bg-transparent text-xs text-white font-mono font-bold focus:outline-none text-center"
+                            />
+                            <span className="text-[10px] text-gray-500 font-mono">{unitLabel}</span>
+                          </div>
+
+                          <div className="flex items-center gap-1 bg-[#12141c] border border-white/15 rounded-xl px-2 py-1">
+                            <span className="text-[10px] text-gray-400 font-bold uppercase">L:</span>
+                            <input
+                              type="text"
+                              value={row.width}
+                              onChange={(e) => handleUpdateMultiRow(row.id, 'width', e.target.value)}
+                              placeholder="0"
+                              className="w-16 bg-transparent text-xs text-white font-mono font-bold focus:outline-none text-center"
+                            />
+                            <span className="text-[10px] text-gray-500 font-mono">{unitLabel}</span>
+                          </div>
+
+                          {/* Contador de Quantidade */}
+                          <div className="flex items-center bg-[#12141c] border border-white/15 rounded-xl p-0.5 shadow-inner">
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateMultiRow(row.id, 'quantity', Math.max(1, row.quantity - 1))}
+                              className="w-6 h-6 rounded-lg bg-white/5 hover:bg-white/15 text-white font-bold flex items-center justify-center text-xs active:scale-95"
+                            >
+                              −
+                            </button>
+                            <input
+                              type="number"
+                              min="1"
+                              value={row.quantity}
+                              onChange={(e) => handleUpdateMultiRow(row.id, 'quantity', Math.max(1, Number(e.target.value) || 1))}
+                              className="w-10 bg-transparent text-xs text-amber-400 font-mono font-bold text-center focus:outline-none"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateMultiRow(row.id, 'quantity', row.quantity + 1)}
+                              className="w-6 h-6 rounded-lg bg-white/5 hover:bg-white/15 text-white font-bold flex items-center justify-center text-xs active:scale-95"
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Fitas de Borda e Ação Excluir */}
+                        <div className="flex items-center gap-2 justify-between w-full md:w-auto shrink-0">
+                          {/* Fitas de borda compactas */}
+                          <div className="flex items-center gap-1">
+                            {[
+                              { k: 'top', label: 'C1' },
+                              { k: 'bottom', label: 'C2' },
+                              { k: 'left', label: 'L1' },
+                              { k: 'right', label: 'L2' },
+                            ].map(side => {
+                              const active = (row.edgeBanding as any)[side.k];
+                              return (
+                                <button
+                                  key={side.k}
+                                  type="button"
+                                  onClick={() => handleUpdateMultiRow(row.id, 'edgeBanding', {
+                                    ...row.edgeBanding,
+                                    [side.k]: !active
+                                  })}
+                                  className={`px-1.5 py-0.5 rounded text-[10px] font-bold border transition-colors cursor-pointer ${
+                                    active
+                                      ? 'bg-amber-500/20 border-amber-500 text-amber-300'
+                                      : 'bg-white/5 border-white/10 text-gray-500 hover:text-gray-300'
+                                  }`}
+                                  title={`Fita ${side.label}`}
+                                >
+                                  {side.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          {/* Botão de Excluir Linha */}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveMultiRow(row.id)}
+                            className="w-7 h-7 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 flex items-center justify-center transition-colors shrink-0 cursor-pointer"
+                            title="Remover esta peça da lista"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                /* Tab Texto: Colar ou Digitar Lista */
+                <div className="space-y-3">
+                  <div className="bg-[#171a25] border border-white/10 p-3 rounded-2xl space-y-1.5">
+                    <span className="text-xs font-bold text-gray-200 block">
+                      ✍️ Digite ou Cole suas Peças (quantas linhas quiser):
+                    </span>
+                    <p className="text-[11px] text-gray-400">
+                      O sistema entende formatos como: <code className="text-amber-300">2 DE 70 * 45 LATERAL</code>, <code className="text-amber-300">1 DE 80 * 60 TAMPO</code> ou <code className="text-amber-300">75 40 2 PORTA</code>.
+                    </p>
+                  </div>
+                  <textarea
+                    value={multiAddText}
+                    onChange={(e) => setMultiAddText(e.target.value)}
+                    rows={8}
+                    placeholder={`Exemplo:\n2 DE 72 * 60 LATERAL\n1 DE 80 * 60 TAMPO\n2 DE 75 * 40 PORTAS\n4 DE 50 * 14 GAVETAS`}
+                    className="w-full bg-[#12141c] border border-white/15 rounded-2xl p-3.5 text-xs text-white placeholder-gray-500 font-mono focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 sm:p-5 border-t border-white/10 bg-[#171922] flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="text-xs text-gray-300 font-bold">
+                {multiAddPiecesTab === 'table' ? (
+                  <span>
+                    Total: <strong className="text-blue-400">{multiAddRows.reduce((s, r) => s + (Number(r.quantity) || 1), 0)} peças</strong> ({multiAddRows.length} itens cadastrados)
+                  </span>
+                ) : (
+                  <span>Cole quantas linhas quiser e clique em Adicionar</span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowMultiAddPiecesModal(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white transition-all cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveMultiPieces}
+                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black px-5 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-lg transition-all active:scale-95 cursor-pointer"
+                >
+                  <Sparkles className="w-4 h-4 text-yellow-300" />
+                  <span>
+                    {multiAddPiecesTab === 'table'
+                      ? `Adicionar ${multiAddRows.reduce((s, r) => s + (Number(r.quantity) || 1), 0)} Peças ao Plano`
+                      : 'Adicionar Todas as Peças ao Plano'}
+                  </span>
                 </button>
               </div>
             </div>

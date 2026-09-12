@@ -73,7 +73,7 @@ const SDComparativoApp: React.FC = () => {
                 <h1 className="text-sm sm:text-lg font-black tracking-tight bg-gradient-to-r from-amber-400 via-amber-200 to-amber-500 bg-clip-text text-transparent truncate">
                   SDcomparativo
                 </h1>
-                <span className="text-[9px] uppercase font-black tracking-wider px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 shrink-0">
+                <span className="text-[9px] uppercase font-black tracking-wider px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 shrink-0 hidden sm:inline-flex">
                   v1.0 Pro
                 </span>
               </div>
