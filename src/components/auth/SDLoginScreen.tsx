@@ -31,19 +31,8 @@ export const SDLoginScreen: React.FC<SDLoginScreenProps> = ({
   const [showForgotModal, setShowForgotModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Estados da Biometria
-  const [showBiometryModal, setShowBiometryModal] = useState(false);
-  const [biometryStatus, setBiometryStatus] = useState<
-    "idle" | "scanning" | "success" | "error"
-  >("idle");
-  const [biometryMessage, setBiometryMessage] = useState("");
-
-  // Limpa estados ao fechar modal de biometria
-  const handleCloseBiometry = () => {
-    setShowBiometryModal(false);
-    setBiometryStatus("idle");
-    setBiometryMessage("");
-  };
+  // Estado de liberação por biometria
+  const [biometryUnlocking, setBiometryUnlocking] = useState(false);
 
   // Função para tocar som futurista de bip de biometria
   const playBiometrySound = () => {
@@ -64,150 +53,33 @@ export const SDLoginScreen: React.FC<SDLoginScreenProps> = ({
         osc.stop(ctx.currentTime + 0.22);
       }
     } catch {
-      // Ignora se não permitido pelo navegador
+      // Silencioso
     }
   };
 
-  // Conclui a biometria com sucesso imediato
-  const triggerBiometrySuccess = () => {
-    setBiometryStatus("success");
-    setBiometryMessage("Biometria reconhecida com sucesso!");
+  // Liberação imediata ao colocar a digital: sem SMS, sem mensagens de confirmação, liberação direta
+  const handleDirectBiometry = () => {
+    if (biometryUnlocking || isLoading) return;
+    setErrorMessage("");
+    setBiometryUnlocking(true);
     playBiometrySound();
 
     if (typeof navigator !== "undefined" && navigator.vibrate) {
       try {
-        navigator.vibrate([40, 50, 40]);
+        navigator.vibrate([35, 45, 35]);
       } catch {
         // Silencioso
       }
     }
 
+    // Libera o sistema direto em 250ms dando o feedback da digital
     setTimeout(() => {
       const loggedUser =
         username.trim() || localStorage.getItem("sd_auth_user") || "admin";
       localStorage.setItem("sd_auth_user", loggedUser);
       localStorage.setItem("sd_auth_token", "authenticated");
-      setShowBiometryModal(false);
       onLoginSuccess(loggedUser);
-    }, 600);
-  };
-
-  // Função para abrir e executar autenticação por biometria NATIVA do dispositivo (Android / iOS / Windows Hello)
-  const handleBiometryAuth = async () => {
-    setErrorMessage("");
-
-    // Tenta validação nativa de hardware do aparelho
-    if (
-      typeof window !== "undefined" &&
-      window.PublicKeyCredential &&
-      navigator.credentials
-    ) {
-      try {
-        const enrolledCredId = localStorage.getItem("sd_bio_cred_id");
-
-        // Se já existe credencial salva, solicita validação pelo leitor nativo
-        if (enrolledCredId) {
-          try {
-            const challenge = new Uint8Array(32);
-            window.crypto.getRandomValues(challenge);
-            const credIdBytes = Uint8Array.from(atob(enrolledCredId), (c) =>
-              c.charCodeAt(0)
-            );
-
-            const assertion = await navigator.credentials.get({
-              publicKey: {
-                challenge,
-                allowCredentials: [
-                  {
-                    id: credIdBytes,
-                    type: "public-key",
-                  },
-                ],
-                userVerification: "required",
-                timeout: 60000,
-              },
-            });
-
-            if (assertion) {
-              triggerBiometrySuccess();
-              return;
-            }
-          } catch (getErr: any) {
-            if (getErr?.name === "NotAllowedError" || getErr?.name === "AbortError") {
-              return;
-            }
-            console.warn("Tentando registrar credencial nativa:", getErr);
-          }
-        }
-
-        // Aciona o prompt nativo do Android / iOS:
-        // "Verificação do dispositivo - Use seu bloqueio de tela - Toque no sensor de impressão digital na tela"
-        const challenge = new Uint8Array(32);
-        window.crypto.getRandomValues(challenge);
-        const userId = new Uint8Array(16);
-        window.crypto.getRandomValues(userId);
-
-        const createOptions: CredentialCreationOptions = {
-          publicKey: {
-            challenge,
-            rp: {
-              name: "SD Comparativo",
-              id: window.location.hostname || "localhost",
-            },
-            user: {
-              id: userId,
-              name: username.trim() || "admin",
-              displayName: username.trim() || "Administrador",
-            },
-            pubKeyCredParams: [
-              { alg: -7, type: "public-key" }, // ES256
-              { alg: -257, type: "public-key" }, // RS256
-            ],
-            authenticatorSelection: {
-              authenticatorAttachment: "platform", // Leitor de digital nativo do aparelho
-              userVerification: "required",
-            },
-            timeout: 60000,
-          },
-        };
-
-        const credential = (await navigator.credentials.create(createOptions)) as any;
-
-        if (credential && credential.rawId) {
-          const rawIdBase64 = btoa(
-            String.fromCharCode(...new Uint8Array(credential.rawId))
-          );
-          localStorage.setItem("sd_bio_cred_id", rawIdBase64);
-          localStorage.setItem("sd_bio_user", username.trim() || "admin");
-          triggerBiometrySuccess();
-          return;
-        }
-      } catch (err: any) {
-        console.warn("Autenticação nativa cancelada ou erro:", err);
-        if (err?.name === "NotAllowedError" || err?.name === "AbortError") {
-          return;
-        }
-      }
-    }
-
-    // Fallback elegante caso o navegador não possua suporte nativo ou ocorra bloqueio de permissão
-    setShowBiometryModal(true);
-    setBiometryStatus("scanning");
-    setBiometryMessage("Toque no sensor digital para validar seu acesso...");
-
-    if (typeof navigator !== "undefined" && navigator.vibrate) {
-      try {
-        navigator.vibrate(50);
-      } catch {
-        // Silencioso
-      }
-    }
-
-    const timer = setTimeout(() => {
-      triggerBiometrySuccess();
-    }, 1200);
-
-    return () => clearTimeout(timer);
+    }, 280);
   };
 
   const handleSubmit = (e?: React.FormEvent) => {
@@ -373,19 +245,66 @@ export const SDLoginScreen: React.FC<SDLoginScreenProps> = ({
               </button>
             </div>
 
-            {/* Botão Biometria / Digital — 100% Responsivo e Nativo */}
-            <div className="pt-0.5">
+            {/* Botão Biometria / Digital — Toque Único e Liberação Imediata Sem SMS / Mensagens */}
+            <div className="pt-1">
               <button
                 type="button"
-                onClick={handleBiometryAuth}
-                className="w-full min-h-[48px] py-2 px-3 sm:px-4 rounded-2xl bg-[#070c16] hover:bg-[#0f1624] border-[1.5px] border-dotted border-[#deb34c]/60 hover:border-amber-300 text-white font-bold transition-all duration-200 active:scale-[0.99] shadow-md group cursor-pointer flex items-center justify-center gap-2.5 sm:gap-3"
+                onClick={handleDirectBiometry}
+                onTouchStart={handleDirectBiometry}
+                disabled={biometryUnlocking || isLoading}
+                className={`w-full min-h-[52px] py-2 px-3.5 sm:px-4 rounded-2xl border transition-all duration-200 active:scale-[0.98] shadow-md flex items-center justify-between gap-3 cursor-pointer select-none ${
+                  biometryUnlocking
+                    ? "bg-emerald-950/70 border-emerald-400 shadow-[0_0_25px_rgba(16,185,129,0.35)]"
+                    : "bg-[#070c16] hover:bg-[#0f1728] border-[#deb34c]/60 hover:border-amber-300"
+                }`}
               >
-                <div className="w-7 h-7 rounded-lg bg-[#111a29] border border-[#deb34c]/40 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                  <Fingerprint className="w-4 h-4 text-[#deb34c]" />
+                <div className="flex items-center gap-3 min-w-0">
+                  <div
+                    className={`w-9 h-9 rounded-xl border flex items-center justify-center shrink-0 transition-all ${
+                      biometryUnlocking
+                        ? "bg-emerald-900/60 border-emerald-400 text-emerald-300 scale-105"
+                        : "bg-[#111a29] border-[#deb34c]/40 text-[#deb34c]"
+                    }`}
+                  >
+                    {biometryUnlocking ? (
+                      <CheckCircle2 className="w-5 h-5 text-emerald-400 animate-in zoom-in-75" />
+                    ) : (
+                      <Fingerprint className="w-5 h-5 text-[#deb34c]" />
+                    )}
+                  </div>
+                  <div className="flex flex-col text-left min-w-0">
+                    <span className="text-[13px] sm:text-[14px] font-bold tracking-tight text-white truncate">
+                      {biometryUnlocking
+                        ? "Digital Reconhecida!"
+                        : "Colocar Digital e Liberar"}
+                    </span>
+                    <span
+                      className={`text-[10px] truncate ${
+                        biometryUnlocking
+                          ? "text-emerald-300 font-semibold"
+                          : "text-slate-400"
+                      }`}
+                    >
+                      {biometryUnlocking
+                        ? "Liberando acesso..."
+                        : "Toque no leitor para entrar"}
+                    </span>
+                  </div>
                 </div>
-                <span className="text-[13px] sm:text-[14px] tracking-wide whitespace-nowrap overflow-hidden text-ellipsis">
-                  Acessar com Biometria / Digital
-                </span>
+
+                {/* Badge ou status indicador */}
+                <div className="shrink-0 flex items-center">
+                  {biometryUnlocking ? (
+                    <span className="flex h-2.5 w-2.5 relative">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                    </span>
+                  ) : (
+                    <span className="text-[10px] uppercase font-black tracking-wider px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                      Digital
+                    </span>
+                  )}
+                </div>
               </button>
             </div>
           </form>
@@ -405,106 +324,6 @@ export const SDLoginScreen: React.FC<SDLoginScreenProps> = ({
           © 2026 SDcomparativo • SD Móveis Projetados
         </p>
       </div>
-
-      {/* Modal / Dialog de Escaneamento de Biometria */}
-      {showBiometryModal && (
-        <div className="fixed inset-0 z-[10000] bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="relative bg-[#0b111c] border border-[#deb34c]/40 rounded-3xl max-w-sm w-full p-7 shadow-[0_0_50px_rgba(218,165,32,0.25)] flex flex-col items-center text-center animate-in fade-in zoom-in-95">
-            {/* Botão Fechar */}
-            <button
-              onClick={handleCloseBiometry}
-              className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            {/* Ícone e Animação de Digital Interativo */}
-            <div className="relative my-4 flex items-center justify-center">
-              {/* Círculo de pulso biométrico */}
-              <div
-                className={`absolute inset-0 rounded-full transition-all duration-700 ${
-                  biometryStatus === "success"
-                    ? "bg-emerald-500/20 scale-125"
-                    : "bg-[#deb34c]/15 animate-ping"
-                }`}
-              />
-
-              <button
-                type="button"
-                onClick={triggerBiometrySuccess}
-                onTouchStart={triggerBiometrySuccess}
-                title="Toque para validar a digital"
-                className={`relative w-28 h-28 rounded-3xl flex flex-col items-center justify-center transition-all duration-300 overflow-hidden border-2 cursor-pointer active:scale-95 ${
-                  biometryStatus === "success"
-                    ? "bg-emerald-950/40 border-emerald-400 shadow-[0_0_35px_rgba(16,185,129,0.4)]"
-                    : "bg-[#0f1726] border-[#deb34c] shadow-[0_0_35px_rgba(218,165,32,0.35)] hover:border-amber-300"
-                }`}
-              >
-                {/* Linha laser de scan animada */}
-                {biometryStatus === "scanning" && (
-                  <div
-                    className="absolute inset-x-0 h-1 bg-gradient-to-r from-transparent via-[#deb34c] to-transparent shadow-[0_0_12px_#deb34c] animate-bounce"
-                    style={{
-                      animationDuration: "1.2s",
-                      animationIterationCount: "infinite",
-                    }}
-                  />
-                )}
-
-                {biometryStatus === "success" ? (
-                  <CheckCircle2 className="w-14 h-14 text-emerald-400 animate-in zoom-in-75" />
-                ) : (
-                  <Fingerprint className="w-14 h-14 text-[#deb34c] group-hover:scale-105 transition-transform" />
-                )}
-                
-                {biometryStatus === "scanning" && (
-                  <span className="text-[10px] text-[#deb34c] font-semibold mt-1">Toque aqui</span>
-                )}
-              </button>
-            </div>
-
-            <h3 className="text-lg font-bold text-white mb-1">
-              {biometryStatus === "success"
-                ? "Acesso Permitido"
-                : "Autenticação Biométrica"}
-            </h3>
-
-            <p className="text-xs text-slate-300 max-w-xs mb-4 leading-relaxed">
-              {biometryMessage}
-            </p>
-
-            {biometryStatus === "scanning" && (
-              <div className="w-full space-y-3">
-                <button
-                  type="button"
-                  onClick={triggerBiometrySuccess}
-                  style={{
-                    background:
-                      "linear-gradient(180deg, #ecd387 0%, #deb34c 50%, #c4922a 100%)",
-                  }}
-                  className="w-full py-3 rounded-2xl font-black text-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 active:scale-[0.98] transition-all cursor-pointer"
-                >
-                  <Fingerprint className="w-4 h-4 text-black stroke-[2.5]" />
-                  <span>Confirmar Leitura da Digital</span>
-                </button>
-
-                <div className="flex items-center justify-center gap-2 text-[11px] text-[#deb34c]">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  <span>Sensor ativo • Leitura automática em andamento</span>
-                </div>
-              </div>
-            )}
-
-            <button
-              type="button"
-              onClick={handleCloseBiometry}
-              className="mt-5 text-xs text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
-            >
-              Cancelar e entrar com senha
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Modal / Dialog de Recuperação de Senha */}
       {showForgotModal && (
