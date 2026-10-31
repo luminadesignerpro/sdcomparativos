@@ -458,8 +458,28 @@ const SuppliersPage: React.FC = () => {
     } catch { return []; }
   });
   
-  // Suppliers state
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  // Suppliers state - inicializa do localStorage ou com fornecedores padrão
+  const [suppliers, setSuppliers] = useState<Supplier[]>(() => {
+    try {
+      const saved = localStorage.getItem('sd_suppliers_v3');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.warn('Erro ao carregar sd_suppliers_v3 do localStorage:', e);
+    }
+    const defaultSuppliers: Supplier[] = [
+      { id: 'itaipu', name: 'ITAIPU', cnpj: null, phone: null, email: null, address: null, category: 'MDF/MDP', notes: null, active: true },
+      { id: 'revesti', name: 'REVESTI', cnpj: null, phone: null, email: null, address: null, category: 'MDF/MDP', notes: null, active: true },
+      { id: 'geovane', name: 'GEOVANE', cnpj: null, phone: null, email: null, address: null, category: 'Ferragens', notes: null, active: true },
+      { id: 'rio_branco', name: 'RIO BRANCO', cnpj: null, phone: null, email: null, address: null, category: 'Geral', notes: null, active: true },
+    ];
+    try {
+      localStorage.setItem('sd_suppliers_v3', JSON.stringify(defaultSuppliers));
+    } catch {}
+    return defaultSuppliers;
+  });
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState('');
@@ -692,12 +712,18 @@ const SuppliersPage: React.FC = () => {
   }, [suppliers]);
 
   const fetchSuppliers = async () => {
-    setLoading(true);
-    const { data } = await db.from('suppliers').select('*').eq('active', true).order('name');
-    if (data && data.length > 0) {
-      setSuppliers(data);
+    try {
+      setLoading(true);
+      const { data, error } = await db.from('suppliers').select('*').eq('active', true).order('name');
+      if (!error && data && Array.isArray(data) && data.length > 0) {
+        setSuppliers(data);
+        localStorage.setItem('sd_suppliers_v3', JSON.stringify(data));
+      }
+    } catch (err) {
+      console.warn('Falha ao sincronizar fornecedores do Supabase, mantendo dados locais:', err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => { fetchSuppliers(); }, []);
@@ -1223,29 +1249,96 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
 
   const handleSaveSupplier = async () => {
     const sName = form.name.trim();
-    if (!sName) { toast({ title: '⚠️ Nome do fornecedor obrigatório', variant: 'destructive' }); return; }
-
-    if (editingId) {
-      await db.from('suppliers').update(form).eq('id', editingId);
-      toast({ title: '✅ Fornecedor atualizado' });
-    } else {
-      await db.from('suppliers').insert(form);
-      toast({ title: `✅ Fornecedor "${sName}" cadastrado com catálogo 100% limpo!` });
+    if (!sName) { 
+      toast({ title: '⚠️ Nome do fornecedor obrigatório', variant: 'destructive' }); 
+      return; 
     }
+
+    const newSupplierData: Supplier = {
+      id: editingId || ('sup_' + Date.now()),
+      name: sName,
+      cnpj: form.cnpj?.trim() || null,
+      phone: form.phone?.trim() || null,
+      email: form.email?.trim() || null,
+      address: form.address?.trim() || null,
+      category: form.category || 'Geral',
+      notes: form.notes?.trim() || null,
+      active: true
+    };
+
+    setSuppliers(prev => {
+      let updated: Supplier[];
+      if (editingId) {
+        updated = prev.map(s => s.id === editingId ? { ...s, ...newSupplierData } : s);
+      } else {
+        const existingIdx = prev.findIndex(s => s.name.trim().toUpperCase() === sName.toUpperCase());
+        if (existingIdx >= 0) {
+          updated = prev.map((s, idx) => idx === existingIdx ? { ...s, ...newSupplierData, id: s.id } : s);
+        } else {
+          updated = [...prev, newSupplierData];
+        }
+      }
+      localStorage.setItem('sd_suppliers_v3', JSON.stringify(updated));
+      pushCloudState({ suppliers: updated });
+      return updated;
+    });
+
+    try {
+      if (editingId) {
+        await db.from('suppliers').update(form).eq('id', editingId);
+      } else {
+        await db.from('suppliers').insert(newSupplierData);
+      }
+    } catch (err) {
+      console.warn('Aviso sincronização DB fornecedor:', err);
+    }
+
+    toast({ title: editingId ? '✅ Fornecedor atualizado com sucesso!' : `✅ Fornecedor "${sName}" cadastrado com sucesso!` });
     setForm({ name: '', cnpj: '', phone: '', email: '', address: '', category: 'Geral', notes: '' });
     setShowForm(false);
     setEditingId(null);
-    fetchSuppliers();
   };
 
   const handleQuickAddSupplier = async () => {
     const name = quickAddSupplierName.trim();
-    if (!name) { toast({ title: '⚠️ Digite o nome do fornecedor', variant: 'destructive' }); return; }
-    await db.from('suppliers').insert({ name, cnpj: null, phone: null, email: null, address: null, category: 'Geral', notes: null, active: true });
-    toast({ title: `✅ Fornecedor "${name}" cadastrado com catálogo 100% limpo!` });
+    if (!name) { 
+      toast({ title: '⚠️ Digite o nome do fornecedor', variant: 'destructive' }); 
+      return; 
+    }
+
+    const newSupplierData: Supplier = {
+      id: 'sup_' + Date.now(),
+      name: name,
+      cnpj: null,
+      phone: null,
+      email: null,
+      address: null,
+      category: 'Geral',
+      notes: null,
+      active: true
+    };
+
+    setSuppliers(prev => {
+      const existing = prev.find(s => s.name.trim().toUpperCase() === name.toUpperCase());
+      if (existing) {
+        toast({ title: `ℹ️ Fornecedor "${name}" já existe na lista!` });
+        return prev;
+      }
+      const updated = [...prev, newSupplierData];
+      localStorage.setItem('sd_suppliers_v3', JSON.stringify(updated));
+      pushCloudState({ suppliers: updated });
+      return updated;
+    });
+
+    try {
+      await db.from('suppliers').insert(newSupplierData);
+    } catch (err) {
+      console.warn('Aviso sincronização DB quick add:', err);
+    }
+
+    toast({ title: `✅ Fornecedor "${name}" cadastrado com sucesso!` });
     setQuickAddSupplierName('');
     setShowQuickAddSupplier(false);
-    fetchSuppliers();
   };
 
   const handleEditSupplier = (s: Supplier) => {
@@ -1260,7 +1353,13 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
 
     if (confirm(`Deseja realmente excluir o fornecedor "${sToDelete.name}"?`)) {
       if (activeTab === `supplier_${id}`) setActiveTab('suppliers_overview');
-      await db.from('suppliers').update({ active: false }).eq('id', id);
+
+      setSuppliers(prev => {
+        const updated = prev.filter(s => s.id !== id);
+        localStorage.setItem('sd_suppliers_v3', JSON.stringify(updated));
+        pushCloudState({ suppliers: updated });
+        return updated;
+      });
 
       // Limpar cotações vinculadas a este fornecedor para manter tudo limpo
       setComparisons(prev => {
@@ -1269,11 +1368,17 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
           quotes: p.quotes.filter(q => q.supplierId !== id && q.supplierName.toLowerCase() !== sToDelete.name.toLowerCase())
         }));
         localStorage.setItem('sd_supplier_comparisons_v3', JSON.stringify(updated));
+        pushCloudState({ comparisons: updated });
         return updated;
       });
 
+      try {
+        await db.from('suppliers').update({ active: false }).eq('id', id);
+      } catch (err) {
+        console.warn('Aviso DB delete supplier:', err);
+      }
+
       toast({ title: `🗑️ Fornecedor "${sToDelete.name}" removido com sucesso!` });
-      fetchSuppliers();
     }
   };
 
@@ -2780,31 +2885,57 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
           ))}
 
           {!showQuickAddSupplier ? (
-            <button
-              onClick={() => setShowQuickAddSupplier(true)}
-              className="flex items-center gap-1 px-2.5 py-1 font-bold text-xs rounded-xl text-emerald-400 hover:bg-emerald-500/10 transition-all border border-emerald-500/30 shrink-0"
-            >
-              + Fornecedor
-            </button>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                onClick={() => setShowQuickAddSupplier(true)}
+                className="flex items-center gap-1 px-2.5 py-1 font-bold text-xs rounded-xl text-emerald-400 hover:bg-emerald-500/10 active:scale-95 transition-all border border-emerald-500/30 shrink-0 cursor-pointer shadow-sm"
+                title="Cadastrar fornecedor rapidamente digitando o nome"
+              >
+                + Fornecedor
+              </button>
+              <button
+                onClick={() => {
+                  setEditingId(null);
+                  setForm({ name: '', cnpj: '', phone: '', email: '', address: '', category: 'Geral', notes: '' });
+                  setShowForm(true);
+                }}
+                className="flex items-center gap-1 px-2 py-1 font-bold text-[11px] rounded-xl text-amber-400 hover:bg-amber-500/15 active:scale-95 transition-all border border-amber-500/30 shrink-0 cursor-pointer"
+                title="Abrir formulário completo de cadastro de fornecedor (CNPJ, Telefone, Endereço)"
+              >
+                + Completo
+              </button>
+            </div>
           ) : (
-            <div className="flex items-center gap-1 bg-[#1a1a1a] p-0.5 rounded-xl border border-emerald-500/40 shrink-0">
+            <div className="flex items-center gap-1.5 bg-[#1a1a1a] p-1 rounded-xl border border-emerald-500/50 shadow-lg shadow-emerald-500/10 shrink-0 animate-in fade-in">
               <input
                 autoFocus
                 value={quickAddSupplierName}
                 onChange={e => setQuickAddSupplierName(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') handleQuickAddSupplier(); if (e.key === 'Escape') { setShowQuickAddSupplier(false); setQuickAddSupplierName(''); } }}
-                placeholder="Nome..."
-                className="px-2 py-0.5 rounded-lg bg-black text-white text-xs placeholder-gray-500 focus:outline-none w-28"
+                onKeyDown={e => { 
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleQuickAddSupplier(); 
+                  }
+                  if (e.key === 'Escape') { 
+                    setShowQuickAddSupplier(false); 
+                    setQuickAddSupplierName(''); 
+                  } 
+                }}
+                placeholder="Nome do Fornecedor..."
+                className="px-2.5 py-1 rounded-lg bg-black text-white text-xs placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-emerald-400 w-36 sm:w-44"
               />
               <button
+                type="button"
                 onClick={handleQuickAddSupplier}
-                className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-2 py-0.5 rounded-lg text-[10px]"
+                className="bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold px-2.5 py-1 rounded-lg text-xs cursor-pointer shadow transition-all"
               >
-                OK
+                Salvar
               </button>
               <button
+                type="button"
                 onClick={() => { setShowQuickAddSupplier(false); setQuickAddSupplierName(''); }}
-                className="text-gray-400 hover:text-white px-1 text-xs"
+                className="text-gray-400 hover:text-white px-1.5 py-0.5 text-xs hover:bg-white/10 rounded-lg transition-all"
+                title="Cancelar"
               >
                 ✕
               </button>
