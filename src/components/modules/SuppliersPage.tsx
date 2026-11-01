@@ -452,6 +452,25 @@ const getUrlClienteParam = () => {
   }
 };
 
+const getUrlItensParam = () => {
+  try {
+    if (typeof window === 'undefined') return [];
+    const p = new URLSearchParams(window.location.search);
+    const rawItens = p.get('itens') || p.get('produtos');
+    if (rawItens) {
+      const parsed = JSON.parse(rawItens);
+      return Array.isArray(parsed) ? parsed : [];
+    }
+    const prodSingle = p.get('produto');
+    if (prodSingle) {
+      return [{ nome: prodSingle, qtd: 1, vunit: 0 }];
+    }
+    return [];
+  } catch {
+    return [];
+  }
+};
+
 const SuppliersPage: React.FC = () => {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<string>(() => {
@@ -654,8 +673,44 @@ const SuppliersPage: React.FC = () => {
 
   // Material List State (Tab 3)
   const [materialList, setMaterialList] = useState<MaterialListItem[]>(() => {
+    const cParam = getUrlClienteParam();
+    const itensParam = getUrlItensParam();
     const saved = localStorage.getItem('sd_material_list_v1');
-    return saved ? JSON.parse(saved) : [];
+    let list: MaterialListItem[] = saved ? JSON.parse(saved) : [];
+
+    if (cParam && itensParam.length > 0) {
+      const savedFolders = localStorage.getItem('sd_client_folders_v1');
+      const folders: ClientFolder[] = savedFolders ? JSON.parse(savedFolders) : [];
+      let targetFolder = folders.find(f => f.name.trim().toLowerCase() === cParam.toLowerCase());
+      const targetFolderId = targetFolder ? targetFolder.id : ('f_' + Date.now());
+
+      itensParam.forEach((it: any, idx: number) => {
+        const nomeItem = (it.nome || it.desc || it.produto || '').trim();
+        if (nomeItem) {
+          const jaExiste = list.some(m => (m.clientFolderId === targetFolderId || m.clientName?.toLowerCase() === cParam.toLowerCase()) && m.productName.trim().toLowerCase() === nomeItem.toLowerCase());
+          if (!jaExiste) {
+            const unitPrice = parseFloat(String(it.vunit || it.preco || it.v_unit || 0).replace(',', '.')) || 0;
+            const qty = Math.max(1, parseInt(String(it.qtd || it.quantidade || 1)) || 1);
+            list.unshift({
+              id: 'mat_' + Date.now() + '_' + idx,
+              productId: 'prod_' + Date.now() + '_' + idx,
+              productName: nomeItem,
+              category: it.categoria || 'Geral',
+              selectedSupplierName: it.fornecedor || 'Fornecedor Principal',
+              selectedBrand: it.marca || 'Padrão',
+              selectedUnitPrice: unitPrice,
+              quantity: qty,
+              total: unitPrice * qty,
+              isCheapestSelected: true,
+              clientName: cParam,
+              clientFolderId: targetFolderId
+            });
+          }
+        }
+      });
+      try { localStorage.setItem('sd_material_list_v1', JSON.stringify(list)); } catch {}
+    }
+    return list;
   });
 
   const [showAddMatForm, setShowAddMatForm] = useState(false);
@@ -695,38 +750,71 @@ const SuppliersPage: React.FC = () => {
   useEffect(() => {
     try {
       const cParam = getUrlClienteParam();
+      const itensParam = getUrlItensParam();
+
       if (cParam) {
         setClientFolders(prev => {
           let match = prev.find(f => f.name.trim().toLowerCase() === cParam.toLowerCase());
+          let updated = prev;
+          let targetFolderId = '';
           if (!match) {
-            match = {
+            const newF = {
               id: 'f_' + Date.now(),
               name: cParam,
               createdAt: new Date().toISOString(),
-              status: 'Pronto para Comprar',
+              status: 'Pronto para Comprar' as const,
               notes: 'Pasta do Cliente importada automaticamente do Orçamento SD Móveis'
             };
-            const updated = [match, ...prev];
+            updated = [newF, ...prev];
+            targetFolderId = newF.id;
             try { localStorage.setItem('sd_client_folders_v1', JSON.stringify(updated)); } catch {}
-            setSelectedClientFolderId(match.id);
-            return updated;
           } else {
-            setSelectedClientFolderId(match.id);
-            return prev;
+            targetFolderId = match.id;
           }
-        });
-        setActiveTab('material_list');
-      }
 
-      const p = new URLSearchParams(window.location.search);
-      const prod = (p.get('produto') || p.get('item') || '').trim();
-      if (prod) {
-        setCompSearch(prod);
+          if (itensParam.length > 0) {
+            setMaterialList(prevList => {
+              let nextList = [...prevList];
+              let alterou = false;
+              itensParam.forEach((it: any, idx: number) => {
+                const nomeItem = (it.nome || it.desc || it.produto || '').trim();
+                if (nomeItem) {
+                  const jaExiste = nextList.some(m => (m.clientFolderId === targetFolderId || m.clientName?.toLowerCase() === cParam.toLowerCase()) && m.productName.trim().toLowerCase() === nomeItem.toLowerCase());
+                  if (!jaExiste) {
+                    const unitPrice = parseFloat(String(it.vunit || it.preco || it.v_unit || 0).replace(',', '.')) || 0;
+                    const qty = Math.max(1, parseInt(String(it.qtd || it.quantidade || 1)) || 1);
+                    nextList.unshift({
+                      id: 'mat_' + Date.now() + '_' + idx,
+                      productId: 'prod_' + Date.now() + '_' + idx,
+                      productName: nomeItem,
+                      category: it.categoria || 'Geral',
+                      selectedSupplierName: it.fornecedor || 'Fornecedor Principal',
+                      selectedBrand: it.marca || 'Padrão',
+                      selectedUnitPrice: unitPrice,
+                      quantity: qty,
+                      total: unitPrice * qty,
+                      isCheapestSelected: true,
+                      clientName: cParam,
+                      clientFolderId: targetFolderId
+                    });
+                    alterou = true;
+                  }
+                }
+              });
+              if (alterou) {
+                try { localStorage.setItem('sd_material_list_v1', JSON.stringify(nextList)); } catch {}
+              }
+              return nextList;
+            });
+          }
+
+          return updated;
+        });
       }
-    } catch (e) {
-      console.warn('Erro ao sincronizar parâmetros da URL:', e);
-    }
+    } catch {}
   }, []);
+
+  // Sync cliente effect original
 
   // ─── SINCRONIZAÇÃO EM TEMPO REAL ENTRE CELULAR E COMPUTADOR ─────────────
   useEffect(() => {

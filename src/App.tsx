@@ -23,7 +23,36 @@ const SDComparativoApp: React.FC = () => {
   const handleVoltarAoOrcamento = () => {
     try {
       const urlParams = new URLSearchParams(window.location.search);
-      const retorno = urlParams.get('retorno') || 'https://sdmoveisprojetados.vercel.app';
+      const retornoBase = urlParams.get('retorno') || 'https://sdmoveisprojetados.vercel.app';
+      const cParam = (urlParams.get('cliente') || urlParams.get('pasta') || '').trim();
+
+      // Coleta materiais da pasta para enviar de volta ao orçamento
+      let itensRetorno: any[] = [];
+      try {
+        const savedMat = localStorage.getItem('sd_material_list_v1');
+        const matList = savedMat ? JSON.parse(savedMat) : [];
+        const savedFolders = localStorage.getItem('sd_client_folders_v1');
+        const folders = savedFolders ? JSON.parse(savedFolders) : [];
+        const activeFolder = cParam ? folders.find((f: any) => f.name.toLowerCase() === cParam.toLowerCase()) : null;
+        const targetId = activeFolder ? activeFolder.id : null;
+
+        const filtered = targetId ? matList.filter((m: any) => m.clientFolderId === targetId || m.clientName?.toLowerCase() === cParam.toLowerCase()) : matList.slice(0, 3);
+        itensRetorno = filtered.map((m: any) => ({
+          nome: m.productName,
+          qtd: m.quantity || 1,
+          vunit: m.selectedUnitPrice || 0,
+          fornecedor: m.selectedSupplierName || ''
+        }));
+      } catch {}
+
+      const urlObj = new URL(retornoBase, window.location.origin);
+      if (cParam) {
+        urlObj.searchParams.set('cliente', cParam);
+      }
+      if (itensRetorno.length > 0) {
+        urlObj.searchParams.set('itens', JSON.stringify(itensRetorno));
+      }
+      const retorno = urlObj.toString();
 
       // 1. Tenta fechar se foi aberto via window.open
       if (window.opener && !window.opener.closed) {
