@@ -456,45 +456,6 @@ const SuppliersPage: React.FC = () => {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<string>(() => {
     const c = getUrlClienteParam();
-
-  // ── Sincronização Automática com Orçamento SD Móveis (Nome do Cliente & Pasta) ──
-  useEffect(() => {
-    try {
-      const cParam = getUrlClienteParam();
-      if (cParam) {
-        setClientFolders(prev => {
-          let match = prev.find(f => f.name.trim().toLowerCase() === cParam.toLowerCase());
-          if (!match) {
-            match = {
-              id: 'f_' + Date.now(),
-              name: cParam,
-              createdAt: new Date().toISOString(),
-              status: 'Pronto para Comprar',
-              notes: 'Pasta do Cliente importada automaticamente do Orçamento SD Móveis'
-            };
-            const updated = [match, ...prev];
-            try { localStorage.setItem('sd_client_folders_v1', JSON.stringify(updated)); } catch {}
-            setSelectedClientFolderId(match.id);
-            return updated;
-          } else {
-            setSelectedClientFolderId(match.id);
-            return prev;
-          }
-        });
-        setActiveTab('material_list');
-      }
-
-      const p = new URLSearchParams(window.location.search);
-      const prod = (p.get('produto') || p.get('item') || '').trim();
-      if (prod) {
-        setCompSearch(prod);
-      }
-    } catch (e) {
-      console.warn('Erro ao sincronizar cliente da URL:', e);
-    }
-  }, []);
-
-
     return c ? 'material_list' : 'comparison';
   });
   
@@ -729,6 +690,43 @@ const SuppliersPage: React.FC = () => {
   });
 
   const [isCloudSyncing, setIsCloudSyncing] = useState(false);
+
+  // ─── Sincronização Automática com Parâmetros de URL (Cliente & Produto) ─────
+  useEffect(() => {
+    try {
+      const cParam = getUrlClienteParam();
+      if (cParam) {
+        setClientFolders(prev => {
+          let match = prev.find(f => f.name.trim().toLowerCase() === cParam.toLowerCase());
+          if (!match) {
+            match = {
+              id: 'f_' + Date.now(),
+              name: cParam,
+              createdAt: new Date().toISOString(),
+              status: 'Pronto para Comprar',
+              notes: 'Pasta do Cliente importada automaticamente do Orçamento SD Móveis'
+            };
+            const updated = [match, ...prev];
+            try { localStorage.setItem('sd_client_folders_v1', JSON.stringify(updated)); } catch {}
+            setSelectedClientFolderId(match.id);
+            return updated;
+          } else {
+            setSelectedClientFolderId(match.id);
+            return prev;
+          }
+        });
+        setActiveTab('material_list');
+      }
+
+      const p = new URLSearchParams(window.location.search);
+      const prod = (p.get('produto') || p.get('item') || '').trim();
+      if (prod) {
+        setCompSearch(prod);
+      }
+    } catch (e) {
+      console.warn('Erro ao sincronizar parâmetros da URL:', e);
+    }
+  }, []);
 
   // ─── SINCRONIZAÇÃO EM TEMPO REAL ENTRE CELULAR E COMPUTADOR ─────────────
   useEffect(() => {
