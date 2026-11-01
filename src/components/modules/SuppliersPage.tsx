@@ -441,9 +441,62 @@ const EditMaterialItemModal: React.FC<EditMaterialItemModalProps> = memo(({
   );
 });
 
+// Helper para capturar nome do cliente ou pasta via URL Query Params
+const getUrlClienteParam = () => {
+  try {
+    if (typeof window === 'undefined') return '';
+    const p = new URLSearchParams(window.location.search);
+    return (p.get('cliente') || p.get('pasta') || p.get('client') || p.get('nome') || '').trim();
+  } catch {
+    return '';
+  }
+};
+
 const SuppliersPage: React.FC = () => {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<string>('comparison');
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    const c = getUrlClienteParam();
+
+  // ── Sincronização Automática com Orçamento SD Móveis (Nome do Cliente & Pasta) ──
+  useEffect(() => {
+    try {
+      const cParam = getUrlClienteParam();
+      if (cParam) {
+        setClientFolders(prev => {
+          let match = prev.find(f => f.name.trim().toLowerCase() === cParam.toLowerCase());
+          if (!match) {
+            match = {
+              id: 'f_' + Date.now(),
+              name: cParam,
+              createdAt: new Date().toISOString(),
+              status: 'Pronto para Comprar',
+              notes: 'Pasta do Cliente importada automaticamente do Orçamento SD Móveis'
+            };
+            const updated = [match, ...prev];
+            try { localStorage.setItem('sd_client_folders_v1', JSON.stringify(updated)); } catch {}
+            setSelectedClientFolderId(match.id);
+            return updated;
+          } else {
+            setSelectedClientFolderId(match.id);
+            return prev;
+          }
+        });
+        setActiveTab('material_list');
+      }
+
+      const p = new URLSearchParams(window.location.search);
+      const prod = (p.get('produto') || p.get('item') || '').trim();
+      if (prod) {
+        setCompSearch(prod);
+      }
+    } catch (e) {
+      console.warn('Erro ao sincronizar cliente da URL:', e);
+    }
+  }, []);
+
+
+    return c ? 'material_list' : 'comparison';
+  });
   
   // Custom Main Tabs
   const [customMainTabs, setCustomMainTabs] = useState<{id: string, name: string}[]>(() => {
@@ -557,17 +610,44 @@ const SuppliersPage: React.FC = () => {
     photoUrl: ''
   });
 
-  // Client Folders State (Pastas de Clientes)
+  // Client Folders State (Pastas de Clientes com Auto-Preenchimento via URL)
   const [clientFolders, setClientFolders] = useState<ClientFolder[]>(() => {
+    const cParam = getUrlClienteParam();
     const saved = localStorage.getItem('sd_client_folders_v1');
-    return saved ? JSON.parse(saved) : [
+    let folders: ClientFolder[] = saved ? JSON.parse(saved) : [
       { id: 'f_davi', name: 'DAVI', createdAt: new Date().toISOString(), status: 'Pronto para Comprar', notes: 'Pasta principal' },
       { id: 'f_samuel', name: 'SAMUEL DAVID', createdAt: new Date().toISOString(), status: 'Pronto para Comprar', notes: 'Lista criada via descrição' }
     ];
+
+    if (cParam) {
+      const match = folders.find(f => f.name.trim().toLowerCase() === cParam.toLowerCase());
+      if (!match) {
+        const newFolder: ClientFolder = {
+          id: 'f_' + Date.now(),
+          name: cParam,
+          createdAt: new Date().toISOString(),
+          status: 'Pronto para Comprar',
+          notes: 'Pasta do Cliente importada automaticamente do Orçamento SD Móveis'
+        };
+        folders = [newFolder, ...folders];
+        try { localStorage.setItem('sd_client_folders_v1', JSON.stringify(folders)); } catch {}
+      }
+    }
+    return folders;
   });
+
   const [selectedClientFolderId, setSelectedClientFolderId] = useState<string>(() => {
-    const saved = localStorage.getItem('sd_selected_folder_id');
-    if (saved && saved !== 'all') return saved;
+    const cParam = getUrlClienteParam();
+    const saved = localStorage.getItem('sd_client_folders_v1');
+    const folders: ClientFolder[] = saved ? JSON.parse(saved) : [];
+
+    if (cParam) {
+      const match = folders.find(f => f.name.trim().toLowerCase() === cParam.toLowerCase());
+      if (match) return match.id;
+    }
+
+    const savedId = localStorage.getItem('sd_selected_folder_id');
+    if (savedId && savedId !== 'all') return savedId;
     return 'f_davi';
   });
 

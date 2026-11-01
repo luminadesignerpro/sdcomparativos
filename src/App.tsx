@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import SuppliersPage from "@/components/modules/SuppliersPage";
 import { SDLoginScreen } from "@/components/auth/SDLoginScreen";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { Layers, LogOut, User } from "lucide-react";
+import { Layers, LogOut, User, ArrowLeft, X } from "lucide-react";
 import appLogo from "@/assets/logo-sd.png";
 import { UpdateButton } from "@/components/common/UpdateButton";
 
@@ -20,6 +20,34 @@ const queryClient = new QueryClient({
 });
 
 const SDComparativoApp: React.FC = () => {
+  const handleVoltarAoOrcamento = () => {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const retorno = urlParams.get('retorno') || 'https://sdmoveisprojetados.vercel.app';
+
+      // 1. Tenta fechar se foi aberto via window.open
+      if (window.opener && !window.opener.closed) {
+        window.close();
+        return;
+      }
+
+      // 2. Se houver histórico anterior, volta nele
+      if (window.history.length > 1) {
+        window.history.back();
+        // Fallback caso permaneça na página
+        setTimeout(() => {
+          window.location.href = retorno;
+        }, 350);
+        return;
+      }
+
+      // 3. Fallback direto para o retorno do orçamento
+      window.location.href = retorno;
+    } catch {
+      window.location.href = 'https://sdmoveisprojetados.vercel.app';
+    }
+  };
+
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     const token = localStorage.getItem("sd_auth_token");
     return token === "authenticated" || token === "authenticated_biometry";
@@ -58,6 +86,16 @@ const SDComparativoApp: React.FC = () => {
 
           {/* Logo & Branding com Ícone 3D Oficial */}
           <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+            {/* Botão Voltar ao Orçamento SD Móveis (Canto Superior) */}
+            <button
+              type="button"
+              onClick={handleVoltarAoOrcamento}
+              title="Voltar ao Orçamento SD Móveis"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/25 to-amber-600/20 hover:from-amber-500/40 hover:to-amber-600/30 text-amber-300 hover:text-white border border-amber-500/50 text-xs font-black transition-all duration-150 cursor-pointer shadow-md active:scale-95 shrink-0"
+            >
+              <ArrowLeft className="w-4 h-4 text-amber-400 shrink-0 font-bold" />
+              <span className="font-extrabold text-xs">Voltar</span>
+            </button>
             <div className="relative group shrink-0">
               <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl overflow-hidden border border-amber-500/50 bg-black flex items-center justify-center shadow-lg shadow-amber-500/20 group-hover:border-amber-400 transition-all">
                 <img src={appLogo} alt="SDcomparativo Logo" className="w-full h-full object-cover" />
