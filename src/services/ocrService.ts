@@ -1,4 +1,4 @@
-import { createWorker } from 'tesseract.js';
+// dynamic import for tesseract.js
 
 /**
  * Pré-processa a imagem com Canvas para aumentar contraste e nitidez,
@@ -146,7 +146,8 @@ Retorne apenas a lista de peças, sem explicações ou saudações.`;
     
     // Tenta carregar modelo português + inglês para reconhecer termos de marcenaria
     try {
-      worker = await createWorker(['por', 'eng'], 1, {
+      const { createWorker } = await import('tesseract.js');
+    worker = await createWorker(['por', 'eng'], 1, {
         logger: (m: any) => {
           if (m.status === 'recognizing text' && onProgress) {
             const pct = Math.round((m.progress || 0) * 100);

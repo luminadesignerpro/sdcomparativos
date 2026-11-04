@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, memo } from 'react';
+﻿import React, { useState, useEffect, useRef, useMemo, memo } from 'react';
 import jsPDF from 'jspdf';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -2837,7 +2837,7 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
 
                       <div className="max-h-64 overflow-y-auto space-y-1 pr-1 scrollbar-thin scrollbar-thumb-white/20">
                         {clientFolders.map(f => {
-                          const fItems = materialList.filter(m => m.clientFolderId === f.id || (m.clientName && m.clientName.toLowerCase() === f.name.toLowerCase()));
+                          const fItems = Array.from(new Map(materialList.filter(m => m.clientFolderId === f.id || (m.clientName && m.clientName.trim().toLowerCase() === f.name.trim().toLowerCase())).map(m => [m.id || (m.productName + "_" + (m.selectedSupplierName || "")), m])).values());
                           const isSelected = selectedClientFolderId === f.id && activeTab === 'material_list';
 
                           return (
@@ -3689,12 +3689,9 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
       {activeTab === 'material_list' && (() => {
         const activeFolder = clientFolders.find(f => f.id === selectedClientFolderId) || clientFolders[0];
         
-        const displayedList = materialList.filter(item => {
-          if (!activeFolder) return false;
-          if (item.clientFolderId === activeFolder.id) return true;
-          if (item.clientName && item.clientName.toLowerCase() === activeFolder.name.toLowerCase()) return true;
-          return false;
-        });
+        const displayedList = activeFolder
+          ? Array.from(new Map(materialList.filter(item => item.clientFolderId === activeFolder.id || (item.clientName && item.clientName.trim().toLowerCase() === activeFolder.name.trim().toLowerCase())).map(m => [m.id || (m.productName + "_" + (m.selectedSupplierName || "")), m])).values())
+          : [];
 
         const folderTotalValue = displayedList.reduce((acc, item) => acc + item.total, 0);
         const folderSuppliersCount = new Set(displayedList.map(m => m.selectedSupplierName)).size;
@@ -3744,7 +3741,7 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
                       return !q || f.name.toLowerCase().includes(q) || (f.phone && f.phone.includes(q));
                     })
                     .map(f => {
-                      const fItems = materialList.filter(m => m.clientFolderId === f.id || (m.clientName && m.clientName.toLowerCase() === f.name.toLowerCase()));
+                      const fItems = Array.from(new Map(materialList.filter(m => m.clientFolderId === f.id || (m.clientName && m.clientName.trim().toLowerCase() === f.name.trim().toLowerCase())).map(m => [m.id || (m.productName + "_" + (m.selectedSupplierName || "")), m])).values());
                       const isActive = activeFolder && activeFolder.id === f.id;
 
                       return (
@@ -5765,3 +5762,4 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
 };
 
 export default SuppliersPage;
+

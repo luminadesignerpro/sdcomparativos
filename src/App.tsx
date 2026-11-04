@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import SuppliersPage from "@/components/modules/SuppliersPage";
 import { SDLoginScreen } from "@/components/auth/SDLoginScreen";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { Layers, LogOut, User, ArrowLeft, X } from "lucide-react";
+import { Layers, LogOut, User, ArrowLeft } from "lucide-react";
 import appLogo from "@/assets/logo-sd.png";
 import { UpdateButton } from "@/components/common/UpdateButton";
 
@@ -26,7 +26,7 @@ const SDComparativoApp: React.FC = () => {
       const retornoBase = urlParams.get('retorno') || 'https://sdmoveisprojetados.vercel.app';
       const cParam = (urlParams.get('cliente') || urlParams.get('pasta') || '').trim();
 
-      // Coleta materiais da pasta para enviar de volta ao orçamento
+      // Coleta materiais da pasta para enviar de volta ao orcamento
       let itensRetorno: any[] = [];
       try {
         const savedMat = localStorage.getItem('sd_material_list_v1');
@@ -60,17 +60,16 @@ const SDComparativoApp: React.FC = () => {
         return;
       }
 
-      // 2. Se houver histórico anterior, volta nele
+      // 2. Se houver historico anterior, volta nele
       if (window.history.length > 1) {
         window.history.back();
-        // Fallback caso permaneça na página
         setTimeout(() => {
           window.location.href = retorno;
         }, 350);
         return;
       }
 
-      // 3. Fallback direto para o retorno do orçamento
+      // 3. Fallback direto para o retorno do orcamento
       window.location.href = retorno;
     } catch {
       window.location.href = 'https://sdmoveisprojetados.vercel.app';
@@ -101,7 +100,7 @@ const SDComparativoApp: React.FC = () => {
       <SDLoginScreen
         onLoginSuccess={handleLoginSuccess}
         appName="SDcomparativo"
-        subtitle="Comparador Inteligente de Preços & Gestão de Fornecedores"
+        subtitle="Comparador Inteligente de Precos & Gestao de Fornecedores"
       />
     );
   }
@@ -109,72 +108,73 @@ const SDComparativoApp: React.FC = () => {
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-slate-950 text-slate-100 font-sans selection:bg-amber-500 selection:text-black">
 
-      {/* ══ HEADER — COMPACTO E PADRONIZADO ══ */}
-      <header className="flex-shrink-0 z-50 border-b border-amber-500/20 bg-slate-900/95 backdrop-blur-md px-3.5 sm:px-6 py-2.5 shadow-lg">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
+      {/* HEADER COMPACTO E 100% RESPONSIVO SEM SOBREPOSICAO */}
+      <header className="flex-shrink-0 z-50 border-b border-amber-500/20 bg-slate-900/95 backdrop-blur-md px-2 sm:px-6 py-2 shadow-lg">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-1.5 sm:gap-2">
 
-          {/* Logo & Branding com Ícone 3D Oficial */}
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-            {/* Botão Voltar ao Orçamento SD Móveis (Canto Superior) */}
+          {/* Esquerda: Botao Voltar + Logo & Branding */}
+          <div className="flex items-center gap-1 sm:gap-2.5 min-w-0 flex-1">
+            {/* Botao Voltar */}
             <button
               type="button"
               onClick={handleVoltarAoOrcamento}
-              title="Voltar ao Orçamento SD Móveis"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/25 to-amber-600/20 hover:from-amber-500/40 hover:to-amber-600/30 text-amber-300 hover:text-white border border-amber-500/50 text-xs font-black transition-all duration-150 cursor-pointer shadow-md active:scale-95 shrink-0"
+              title="Voltar ao Orcamento SD Moveis"
+              className="flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/25 to-amber-600/20 hover:from-amber-500/40 hover:to-amber-600/30 text-amber-300 hover:text-white border border-amber-500/50 text-xs font-black transition-all duration-150 cursor-pointer shadow-md active:scale-95 shrink-0"
             >
-              <ArrowLeft className="w-4 h-4 text-amber-400 shrink-0 font-bold" />
-              <span className="font-extrabold text-xs">Voltar</span>
+              <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400 shrink-0 font-bold" />
+              <span className="font-extrabold text-[11px] sm:text-xs">Voltar</span>
             </button>
+
+            {/* Logo SD */}
             <div className="relative group shrink-0">
-              <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl overflow-hidden border border-amber-500/50 bg-black flex items-center justify-center shadow-lg shadow-amber-500/20 group-hover:border-amber-400 transition-all">
+              <div className="w-7 h-7 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl overflow-hidden border border-amber-500/50 bg-black flex items-center justify-center shadow-lg shadow-amber-500/20 group-hover:border-amber-400 transition-all">
                 <img src={appLogo} alt="SDcomparativo Logo" className="w-full h-full object-cover" />
               </div>
-              <span className="absolute -bottom-0.5 -right-0.5 flex h-2.5 w-2.5">
+              <span className="absolute -bottom-0.5 -right-0.5 flex h-2 w-2 sm:h-2.5 sm:w-2.5">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 sm:h-2.5 sm:w-2.5 bg-amber-500"></span>
               </span>
             </div>
 
             <div className="min-w-0">
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                <h1 className="text-sm sm:text-lg font-black tracking-tight bg-gradient-to-r from-amber-400 via-amber-200 to-amber-500 bg-clip-text text-transparent truncate">
+              <div className="flex items-center gap-1 sm:gap-2">
+                <h1 className="text-xs sm:text-lg font-black tracking-tight bg-gradient-to-r from-amber-400 via-amber-200 to-amber-500 bg-clip-text text-transparent truncate">
                   SDcomparativo
                 </h1>
-                <span className="text-[9px] uppercase font-black tracking-wider px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 shrink-0 hidden sm:inline-flex">
+                <span className="text-[9px] uppercase font-black tracking-wider px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 shrink-0 hidden md:inline-flex">
                   v1.0 Pro
                 </span>
               </div>
               <p className="text-[10px] sm:text-[11px] text-slate-400 truncate hidden md:block">
-                Comparador Inteligente de Preços &amp; Gestão de Fornecedores
+                Comparador Inteligente de Precos &amp; Gestao de Fornecedores
               </p>
             </div>
           </div>
 
-          {/* Ações do Usuário & Logout — 100% visível em mobile e desktop */}
-          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-            {/* Botão de Atualização com Notificação */}
+          {/* Direita: Atualizado + Usuario + Logout */}
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+            {/* Botao de Atualizacao com Notificacao */}
             <UpdateButton />
 
-            <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/60 text-xs text-slate-300">
+            <div className="flex items-center gap-1 px-1.5 sm:px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/60 text-xs text-slate-300">
               <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
               <User className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-              <span className="font-semibold text-white truncate max-w-[70px] sm:max-w-[120px]">{currentUser}</span>
+              <span className="font-semibold text-white truncate max-w-[50px] sm:max-w-[120px] hidden sm:inline">{currentUser}</span>
             </div>
 
             <button
               onClick={handleLogout}
               title="Sair do Sistema"
-              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 text-red-400 hover:text-red-300 border border-red-500/40 text-xs font-bold transition-all duration-150 cursor-pointer shadow-sm active:scale-95 shrink-0"
+              className="flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 text-red-400 hover:text-red-300 border border-red-500/40 text-xs font-bold transition-all duration-150 cursor-pointer shadow-sm active:scale-95 shrink-0"
             >
               <LogOut className="w-3.5 h-3.5 shrink-0" />
-              <span className="font-bold">Sair</span>
+              <span className="font-bold hidden sm:inline">Sair</span>
             </button>
           </div>
         </div>
       </header>
 
-
-      {/* ══ CONTEÚDO ══ */}
+      {/* CONTEUDO */}
       <main className="flex-1 overflow-hidden w-full flex flex-col">
         <SuppliersPage />
       </main>
@@ -182,10 +182,10 @@ const SDComparativoApp: React.FC = () => {
       {/* Footer */}
       <footer className="flex-shrink-0 border-t border-slate-800/80 bg-slate-950/80 py-3 px-4 text-center text-xs text-slate-400">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
-          <p>© {new Date().getFullYear()} SDcomparativo • SD Móveis Projetados</p>
+          <p>© {new Date().getFullYear()} SDcomparativo • SD Moveis Projetados</p>
           <p className="flex items-center gap-1 text-slate-400">
             <Layers className="w-3.5 h-3.5 text-amber-500" />
-            Módulo de Comparação e Aquisição de Insumos
+            Modulo de Comparacao e Aquisicao de Insumos
           </p>
         </div>
       </footer>
