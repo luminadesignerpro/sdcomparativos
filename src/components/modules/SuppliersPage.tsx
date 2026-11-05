@@ -4047,17 +4047,17 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
                       </div>
                     </div>
 
-                    <table className="w-full min-w-[750px]">
+                    <table className="w-full min-w-[700px]">
                       <thead className="bg-[#16191f] border-b border-white/10">
                         <tr>
-                          <th className="text-left p-4 text-xs font-black text-amber-400 uppercase">Produto / Material</th>
-                          <th className="text-left p-4 text-xs font-black text-purple-400 uppercase">Pasta / Cliente</th>
-                          <th className="text-left p-4 text-xs font-black text-emerald-400 uppercase">Fornecedor / Comparativo</th>
-                          <th className="text-left p-4 text-xs font-black text-gray-400 uppercase">Marca</th>
-                          <th className="text-center p-4 text-xs font-black text-gray-400 uppercase">Qtd</th>
-                          <th className="text-right p-4 text-xs font-black text-gray-400 uppercase">Valor Unit.</th>
-                          <th className="text-right p-4 text-xs font-black text-emerald-400 uppercase">Subtotal</th>
-                          <th className="text-center p-4 text-xs font-black text-gray-400 uppercase">Ações</th>
+                          <th className="text-left py-2.5 px-3 text-[11px] font-black text-amber-400 uppercase">Produto / Material</th>
+                          <th className="text-left py-2.5 px-3 text-[11px] font-black text-purple-400 uppercase">Pasta / Cliente</th>
+                          <th className="text-left py-2.5 px-3 text-[11px] font-black text-emerald-400 uppercase">Fornecedor Selecionado</th>
+                          <th className="text-left py-2.5 px-3 text-[11px] font-black text-gray-400 uppercase">Marca</th>
+                          <th className="text-center py-2.5 px-3 text-[11px] font-black text-gray-400 uppercase">Qtd</th>
+                          <th className="text-right py-2.5 px-3 text-[11px] font-black text-gray-400 uppercase">Valor Unit.</th>
+                          <th className="text-right py-2.5 px-3 text-[11px] font-black text-emerald-400 uppercase">Subtotal</th>
+                          <th className="text-center py-2.5 px-3 text-[11px] font-black text-gray-400 uppercase">Ações</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -4088,129 +4088,87 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
 
                           return (
                             <tr key={item.id} className="border-t border-white/5 hover:bg-white/5 transition-colors">
-                              <td className="p-4 font-bold text-white">
-                                <div className="flex items-center gap-2">
-                                  <span>{item.productName}</span>
-                                  {!hasQuotes && (
-                                    <span className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider">
-                                      Sem Cotação
-                                    </span>
-                                  )}
-                                </div>
-                                <span className="block text-[10px] text-amber-500/80 font-normal">{item.category}</span>
+                              <td className="py-2.5 px-3 font-bold text-white text-xs sm:text-sm">
+                                <div className="leading-tight">{item.productName}</div>
+                                <span className="block text-[10px] text-amber-500/80 font-normal mt-0.5">{item.category}</span>
                               </td>
-                              <td className="p-4">
+                              <td className="py-2.5 px-3">
                                 <span className="bg-purple-500/15 border border-purple-500/30 text-purple-300 text-xs font-bold px-2.5 py-1 rounded-xl flex items-center gap-1 w-fit">
                                   📁 {item.clientName || activeFolder.name}
                                 </span>
                               </td>
-                              <td className="p-4">
+                              <td className="py-2.5 px-3">
                                 {!hasQuotes ? (
-                                  <div className="flex flex-col gap-1 items-start">
-                                    <div className="flex items-center gap-1.5 flex-wrap">
-                                      <span className="bg-amber-500/15 border border-amber-500/40 text-amber-300 text-[11px] font-black px-2.5 py-1 rounded-xl flex items-center gap-1.5 shadow-sm">
-                                        <span>⚠️</span>
-                                        <span>NÃO ENCONTRADO NOS FORNECEDORES</span>
+                                  <div className="flex flex-col gap-0.5 items-start">
+                                    <span className="font-extrabold text-amber-400 text-xs flex items-center gap-1">
+                                      ⚠️ Não encontrado
+                                    </span>
+                                    <div className="flex items-center gap-1">
+                                      <span className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider">
+                                        Sem Cotação
                                       </span>
                                       <button
                                         type="button"
                                         onClick={() => setEditingMatItem(item)}
-                                        className="bg-amber-500/20 hover:bg-amber-500/35 border border-amber-500/50 text-amber-300 text-[10px] font-bold px-2 py-0.5 rounded-lg transition-all flex items-center gap-1 cursor-pointer hover:scale-105"
-                                        title="Adicionar cotação deste produto nos fornecedores"
+                                        className="text-[10px] text-amber-400 hover:text-amber-300 underline font-bold ml-1 cursor-pointer"
+                                        title="Adicionar cotação de fornecedor"
                                       >
-                                        <Plus className="w-3 h-3" /> Cotar
+                                        + Cotar
                                       </button>
                                     </div>
-                                    <span className="text-[10px] text-slate-400 font-medium">
-                                      Nenhum fornecedor cadastrado possui cotação deste item
-                                    </span>
                                   </div>
                                 ) : (
-                                  <div className="flex flex-col gap-1.5">
-                                    {/* Linha Principal: Fornecedor e Menor Preço */}
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                      <span className="font-extrabold text-white text-xs flex items-center gap-1">
-                                        🏢 {effectiveSupplier}
-                                      </span>
+                                  <div className="flex flex-col gap-0.5 items-start">
+                                    <span className="font-extrabold text-white text-xs flex items-center gap-1 truncate max-w-[170px]" title={effectiveSupplier}>
+                                      🏢 {effectiveSupplier}
+                                    </span>
+                                    <div className="flex items-center gap-1.5 flex-wrap">
                                       {isCheapest ? (
                                         <span className="bg-emerald-500 text-black text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider shadow-sm flex items-center gap-1">
-                                          🏆 MENOR PREÇO: R$ {minPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                          🏆 MENOR PREÇO
                                         </span>
                                       ) : (
                                         diff > 0 && (
-                                          <span className="bg-red-500/15 border border-red-500/30 text-red-400 text-[10px] font-bold px-2 py-0.5 rounded-lg flex items-center gap-1">
-                                            <span>+ R$ {diff.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                                            <span className="text-emerald-400 font-extrabold">• Menor: {cheapestSupplierName} (R$ {minPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })})</span>
+                                          <span className="bg-red-500/15 border border-red-500/30 text-red-400 text-[9px] font-bold px-1.5 py-0.5 rounded-md">
+                                            + R$ {diff.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                           </span>
                                         )
                                       )}
-                                    </div>
-
-                                    {/* Comparativo de Preços entre os Fornecedores Cadastrados */}
-                                    <div className="flex items-center gap-1 flex-wrap mt-0.5">
-                                      <span className="text-[9.5px] text-slate-400 font-semibold mr-0.5">Comparativo:</span>
-                                      {sortedQuotes.map((q, qIdx) => {
-                                        const qPrice = q.unitPrice || q.price || 0;
-                                        const isBest = qIdx === 0;
-                                        const isSelected = effectiveSupplier.toLowerCase() === q.supplierName.toLowerCase();
-                                        return (
-                                          <button
-                                            key={qIdx}
-                                            type="button"
-                                            onClick={() => {
-                                              const updatedItem: MaterialListItem = {
-                                                ...item,
-                                                selectedSupplierName: q.supplierName,
-                                                selectedUnitPrice: qPrice,
-                                                selectedBrand: q.brand || item.selectedBrand || 'Geral',
-                                                total: qPrice * item.quantity,
-                                                isCheapestSelected: isBest
-                                              };
-                                              setMaterialList(prev => {
-                                                const next = prev.map(m => m.id === item.id ? updatedItem : m);
-                                                try { localStorage.setItem('sd_material_list_v1', JSON.stringify(next)); } catch {}
-                                                return next;
-                                              });
-                                              toast({ title: `🏢 Fornecedor alterado para ${q.supplierName} (R$ ${qPrice.toFixed(2)})` });
-                                            }}
-                                            className={`text-[9.5px] px-2 py-0.5 rounded-md font-mono border transition-all cursor-pointer flex items-center gap-1 ${
-                                              isSelected
-                                                ? 'bg-emerald-500/25 border-emerald-500/60 text-emerald-300 font-black shadow-sm ring-1 ring-emerald-500/40'
-                                                : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10 hover:border-slate-500'
-                                            }`}
-                                            title={`Clique para selecionar ${q.supplierName} (R$ ${qPrice.toFixed(2)})`}
-                                          >
-                                            <span>{isBest ? '🥇' : '🏢'}</span>
-                                            <span>{q.supplierName}: R$ {qPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                                          </button>
-                                        );
-                                      })}
+                                      {sortedQuotes.length > 1 && (
+                                        <button
+                                          type="button"
+                                          onClick={() => setEditingMatItem(item)}
+                                          className="text-[9.5px] text-slate-400 hover:text-emerald-400 underline font-semibold transition-colors"
+                                          title="Clique para alternar entre fornecedores cotados"
+                                        >
+                                          ({sortedQuotes.length} fornecedores)
+                                        </button>
+                                      )}
                                     </div>
                                   </div>
                                 )}
                               </td>
-                              <td className="p-4 text-gray-300 text-sm">{item.selectedBrand || 'Geral'}</td>
-                              <td className="p-4 text-center font-bold text-amber-400">{item.quantity}</td>
-                              <td className="p-4 text-right text-gray-300">R$ {item.selectedUnitPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                              <td className="p-4 text-right font-black text-emerald-400">R$ {item.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                              <td className="p-4 text-center">
-                                <div className="flex items-center justify-center gap-1.5">
+                              <td className="py-2.5 px-3 text-gray-300 text-xs sm:text-sm">{item.selectedBrand || 'Geral'}</td>
+                              <td className="py-2.5 px-3 text-center font-bold text-amber-400 text-xs sm:text-sm">{item.quantity}</td>
+                              <td className="py-2.5 px-3 text-right text-gray-300 text-xs sm:text-sm">R$ {item.selectedUnitPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                              <td className="py-2.5 px-3 text-right font-black text-emerald-400 text-xs sm:text-sm">R$ {item.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                              <td className="py-2.5 px-3 text-center">
+                                <div className="flex items-center justify-center gap-1">
                                   <button
                                     onClick={() => setEditingMatItem(item)}
-                                    className="w-8 h-8 bg-white/5 border border-white/10 text-gray-400 hover:text-amber-400 hover:bg-amber-500/10 rounded-xl flex items-center justify-center transition-all cursor-pointer"
+                                    className="w-7 h-7 bg-white/5 border border-white/10 text-gray-400 hover:text-amber-400 hover:bg-amber-500/10 rounded-lg flex items-center justify-center transition-all cursor-pointer"
                                     title="Editar item"
                                   >
-                                    <Pencil className="w-3.5 h-3.5" />
+                                    <Pencil className="w-3 h-3" />
                                   </button>
                                   <button
                                     onClick={() => handleDeleteMaterialItem(item.id)}
-                                    className="w-8 h-8 bg-white/5 border border-white/10 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-xl flex items-center justify-center transition-all cursor-pointer"
+                                    className="w-7 h-7 bg-white/5 border border-white/10 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg flex items-center justify-center transition-all cursor-pointer"
                                     title="Remover item da lista"
                                   >
-                                    <Trash2 className="w-3.5 h-3.5" />
+                                    <Trash2 className="w-3 h-3" />
                                   </button>
-                                </div>
-                              </td>
+                                </div>                              </td>
                             </tr>
                           );
                         })}
