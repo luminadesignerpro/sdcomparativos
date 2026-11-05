@@ -209,6 +209,59 @@ const OriginalDescriptionEditor: React.FC<OriginalDescriptionEditorProps> = memo
 });
 
 // ─── Modal Dedicado para Editar Item da Lista de Compras ──────────────────
+// ─── Helper de Normalização e Busca Inteligente de Cotações nos Fornecedores ───
+export function findProductMatch(
+  item: { productId?: string; productName: string } | null,
+  comparisons: ProductComparison[]
+): ProductComparison | null {
+  if (!item || !item.productName) return null;
+  if (item.productId) {
+    const byId = comparisons.find(c => c.id === item.productId);
+    if (byId) return byId;
+  }
+
+  const norm = (s: string) => (s || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const target = norm(item.productName);
+  if (!target) return null;
+
+  // 1. Busca exata normalizada
+  const exact = comparisons.find(c => norm(c.productName) === target);
+  if (exact) return exact;
+
+  // 2. Um contém o outro
+  const substr = comparisons.find(c => {
+    const cn = norm(c.productName);
+    return (cn.length >= 3 && target.length >= 3) && (cn.includes(target) || target.includes(cn));
+  });
+  if (substr) return substr;
+
+  // 3. Sobreposição de palavras-chave
+  const stopWords = new Set(['para', 'com', 'sem', 'mdf', 'mdp', 'un', 'und', 'barra', 'metro', 'm2', 'fita']);
+  const targetWords = target.split(' ').filter(w => w.length >= 3 && !stopWords.has(w));
+  if (targetWords.length > 0) {
+    let bestComp: ProductComparison | null = null;
+    let maxMatches = 0;
+    comparisons.forEach(c => {
+      const cWords = norm(c.productName).split(' ');
+      const matchCount = targetWords.filter(w => cWords.includes(w)).length;
+      if (matchCount > maxMatches && matchCount >= Math.min(2, targetWords.length)) {
+        maxMatches = matchCount;
+        bestComp = c;
+      }
+    });
+    if (bestComp) return bestComp;
+  }
+
+  return null;
+}
+
 interface EditMaterialItemModalProps {
   item: MaterialListItem | null;
   onClose: () => void;
@@ -241,7 +294,7 @@ const EditMaterialItemModal: React.FC<EditMaterialItemModalProps> = memo(({
   // Encontrar o produto correspondente no comparativo
   const compProd = useMemo(() => {
     if (!item) return null;
-    return comparisons.find(c => c.id === item.productId || c.productName.toLowerCase() === item.productName.toLowerCase()) || null;
+    return findProductMatch(item, comparisons);
   }, [item, comparisons]);
 
   const productQuotes = useMemo(() => {
@@ -3969,6 +4022,28 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
                         <span className="text-xs text-emerald-400 font-black">
                           Total: R$ {folderTotalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
+                        {(() => {
+                          const regNames = new Set(suppliers.map(s => s.name.trim().toLowerCase()));
+                          const unquoted = displayedList.filter(it => {
+                            const cp = findProductMatch(it, comparisons);
+                            const vq = (cp?.quotes || []).filter(q => q && q.supplierName && regNames.has(q.supplierName.trim().toLowerCase()) && (q.unitPrice || q.price || 0) > 0);
+                            return vq.length === 0;
+                          }).length;
+                          if (unquoted > 0) {
+                            return (
+                              <span className="bg-amber-500/15 border border-amber-500/40 text-amber-300 text-[11px] font-black px-2.5 py-1 rounded-xl flex items-center gap-1 shadow-sm">
+                                <span>⚠️</span>
+                                <span>{unquoted} {unquoted === 1 ? 'não encontrado' : 'não encontrados'} nos fornecedores</span>
+                              </span>
+                            );
+                          }
+                          return (
+                            <span className="bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-[11px] font-black px-2.5 py-1 rounded-xl flex items-center gap-1 shadow-sm">
+                              <span>✅</span>
+                              <span>Todos os itens cotados nos fornecedores</span>
+                            </span>
+                          );
+                        })()}
                       </div>
                     </div>
 
@@ -3977,7 +4052,7 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
                         <tr>
                           <th className="text-left p-4 text-xs font-black text-amber-400 uppercase">Produto / Material</th>
                           <th className="text-left p-4 text-xs font-black text-purple-400 uppercase">Pasta / Cliente</th>
-                          <th className="text-left p-4 text-xs font-black text-emerald-400 uppercase">Fornecedor Selecionado</th>
+                          <th className="text-left p-4 text-xs font-black text-emerald-400 uppercase">Fornecedor / Comparativo</th>
                           <th className="text-left p-4 text-xs font-black text-gray-400 uppercase">Marca</th>
                           <th className="text-center p-4 text-xs font-black text-gray-400 uppercase">Qtd</th>
                           <th className="text-right p-4 text-xs font-black text-gray-400 uppercase">Valor Unit.</th>
@@ -3987,7 +4062,7 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
                       </thead>
                       <tbody>
                         {displayedList.map(item => {
-                          const compProd = comparisons.find(c => c.id === item.productId || c.productName.toLowerCase() === item.productName.toLowerCase());
+                          const compProd = findProductMatch(item, comparisons);
                           const registeredSupplierNames = new Set(suppliers.map(s => s.name.trim().toLowerCase()));
                           const validQuotes = (compProd?.quotes || []).filter(q => {
                             if (!q || !q.supplierName) return false;
@@ -3995,23 +4070,33 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
                             return p > 0 && registeredSupplierNames.has(q.supplierName.trim().toLowerCase());
                           });
 
-                          let minPrice = item.selectedUnitPrice;
-                          let cheapestSupplierName = item.selectedSupplierName;
-                          validQuotes.forEach(q => {
-                            const p = q.unitPrice || q.price || 0;
-                            if (p < minPrice) {
-                              minPrice = p;
-                              cheapestSupplierName = q.supplierName;
-                            }
-                          });
+                          const hasQuotes = validQuotes.length > 0;
+                          const sortedQuotes = hasQuotes
+                            ? [...validQuotes].sort((a, b) => (a.unitPrice || a.price || 0) - (b.unitPrice || b.price || 0))
+                            : [];
 
-                          const isCheapest = validQuotes.length > 0 ? (item.selectedUnitPrice <= minPrice + 0.001) : true;
-                          const diff = item.selectedUnitPrice - minPrice;
+                          const cheapestQuote = sortedQuotes[0] || null;
+                          const minPrice = cheapestQuote ? (cheapestQuote.unitPrice || cheapestQuote.price || 0) : item.selectedUnitPrice;
+                          const cheapestSupplierName = cheapestQuote ? cheapestQuote.supplierName : '';
+
+                          const hasValidSelected = item.selectedSupplierName && registeredSupplierNames.has(item.selectedSupplierName.trim().toLowerCase());
+                          const effectiveSupplier = hasValidSelected ? item.selectedSupplierName : cheapestSupplierName;
+
+                          const currentPrice = item.selectedUnitPrice;
+                          const isCheapest = hasQuotes && (currentPrice <= minPrice + 0.01 || (effectiveSupplier && effectiveSupplier.toLowerCase() === cheapestSupplierName.toLowerCase()));
+                          const diff = hasQuotes ? Math.max(0, currentPrice - minPrice) : 0;
 
                           return (
                             <tr key={item.id} className="border-t border-white/5 hover:bg-white/5 transition-colors">
                               <td className="p-4 font-bold text-white">
-                                {item.productName}
+                                <div className="flex items-center gap-2">
+                                  <span>{item.productName}</span>
+                                  {!hasQuotes && (
+                                    <span className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider">
+                                      Sem Cotação
+                                    </span>
+                                  )}
+                                </div>
                                 <span className="block text-[10px] text-amber-500/80 font-normal">{item.category}</span>
                               </td>
                               <td className="p-4">
@@ -4020,23 +4105,89 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
                                 </span>
                               </td>
                               <td className="p-4">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="font-extrabold text-white text-xs flex items-center gap-1">
-                                    🏢 {item.selectedSupplierName}
-                                  </span>
-                                  {isCheapest ? (
-                                    <span className="bg-emerald-500 text-black text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider shadow-sm">
-                                      🏆 MENOR PREÇO
-                                    </span>
-                                  ) : (
-                                    diff > 0 && (
-                                      <span className="bg-red-500/15 border border-red-500/30 text-red-400 text-[10px] font-bold px-2 py-0.5 rounded-lg flex items-center gap-1">
-                                        <span>+ R$ {diff.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} mais caro</span>
-                                        <span className="text-emerald-400 font-extrabold">• Mais barato: {cheapestSupplierName} (R$ {minPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })})</span>
+                                {!hasQuotes ? (
+                                  <div className="flex flex-col gap-1 items-start">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span className="bg-amber-500/15 border border-amber-500/40 text-amber-300 text-[11px] font-black px-2.5 py-1 rounded-xl flex items-center gap-1.5 shadow-sm">
+                                        <span>⚠️</span>
+                                        <span>NÃO ENCONTRADO NOS FORNECEDORES</span>
                                       </span>
-                                    )
-                                  )}
-                                </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => setEditingMatItem(item)}
+                                        className="bg-amber-500/20 hover:bg-amber-500/35 border border-amber-500/50 text-amber-300 text-[10px] font-bold px-2 py-0.5 rounded-lg transition-all flex items-center gap-1 cursor-pointer hover:scale-105"
+                                        title="Adicionar cotação deste produto nos fornecedores"
+                                      >
+                                        <Plus className="w-3 h-3" /> Cotar
+                                      </button>
+                                    </div>
+                                    <span className="text-[10px] text-slate-400 font-medium">
+                                      Nenhum fornecedor cadastrado possui cotação deste item
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <div className="flex flex-col gap-1.5">
+                                    {/* Linha Principal: Fornecedor e Menor Preço */}
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span className="font-extrabold text-white text-xs flex items-center gap-1">
+                                        🏢 {effectiveSupplier}
+                                      </span>
+                                      {isCheapest ? (
+                                        <span className="bg-emerald-500 text-black text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider shadow-sm flex items-center gap-1">
+                                          🏆 MENOR PREÇO: R$ {minPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                        </span>
+                                      ) : (
+                                        diff > 0 && (
+                                          <span className="bg-red-500/15 border border-red-500/30 text-red-400 text-[10px] font-bold px-2 py-0.5 rounded-lg flex items-center gap-1">
+                                            <span>+ R$ {diff.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                            <span className="text-emerald-400 font-extrabold">• Menor: {cheapestSupplierName} (R$ {minPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })})</span>
+                                          </span>
+                                        )
+                                      )}
+                                    </div>
+
+                                    {/* Comparativo de Preços entre os Fornecedores Cadastrados */}
+                                    <div className="flex items-center gap-1 flex-wrap mt-0.5">
+                                      <span className="text-[9.5px] text-slate-400 font-semibold mr-0.5">Comparativo:</span>
+                                      {sortedQuotes.map((q, qIdx) => {
+                                        const qPrice = q.unitPrice || q.price || 0;
+                                        const isBest = qIdx === 0;
+                                        const isSelected = effectiveSupplier.toLowerCase() === q.supplierName.toLowerCase();
+                                        return (
+                                          <button
+                                            key={qIdx}
+                                            type="button"
+                                            onClick={() => {
+                                              const updatedItem: MaterialListItem = {
+                                                ...item,
+                                                selectedSupplierName: q.supplierName,
+                                                selectedUnitPrice: qPrice,
+                                                selectedBrand: q.brand || item.selectedBrand || 'Geral',
+                                                total: qPrice * item.quantity,
+                                                isCheapestSelected: isBest
+                                              };
+                                              setMaterialList(prev => {
+                                                const next = prev.map(m => m.id === item.id ? updatedItem : m);
+                                                try { localStorage.setItem('sd_material_list_v1', JSON.stringify(next)); } catch {}
+                                                return next;
+                                              });
+                                              toast({ title: `🏢 Fornecedor alterado para ${q.supplierName} (R$ ${qPrice.toFixed(2)})` });
+                                            }}
+                                            className={`text-[9.5px] px-2 py-0.5 rounded-md font-mono border transition-all cursor-pointer flex items-center gap-1 ${
+                                              isSelected
+                                                ? 'bg-emerald-500/25 border-emerald-500/60 text-emerald-300 font-black shadow-sm ring-1 ring-emerald-500/40'
+                                                : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10 hover:border-slate-500'
+                                            }`}
+                                            title={`Clique para selecionar ${q.supplierName} (R$ ${qPrice.toFixed(2)})`}
+                                          >
+                                            <span>{isBest ? '🥇' : '🏢'}</span>
+                                            <span>{q.supplierName}: R$ {qPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                )}
                               </td>
                               <td className="p-4 text-gray-300 text-sm">{item.selectedBrand || 'Geral'}</td>
                               <td className="p-4 text-center font-bold text-amber-400">{item.quantity}</td>
@@ -4948,9 +5099,51 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
         item={editingMatItem}
         onClose={() => setEditingMatItem(null)}
         onSave={(updated) => {
-          setMaterialList(prev => prev.map(m => m.id === updated.id ? updated : m));
+          setMaterialList(prev => {
+            const next = prev.map(m => m.id === updated.id ? updated : m);
+            try { localStorage.setItem('sd_material_list_v1', JSON.stringify(next)); } catch {}
+            return next;
+          });
+
+          // Se informou fornecedor cadastrado e preço, registra ou atualiza cotação em comparisons
+          if (updated.selectedSupplierName && updated.selectedUnitPrice > 0) {
+            setComparisons(prev => {
+              const next = [...prev];
+              let comp = findProductMatch(updated, next);
+              const newQuote: PriceQuote = {
+                supplierId: updated.selectedSupplierName.toLowerCase().replace(/\s+/g, '_'),
+                supplierName: updated.selectedSupplierName,
+                brand: updated.selectedBrand || 'Geral',
+                pricePerM2: null,
+                unitPrice: updated.selectedUnitPrice,
+                price: updated.selectedUnitPrice,
+                updatedAt: new Date().toISOString()
+              };
+
+              if (comp) {
+                const qIdx = comp.quotes.findIndex(q => q.supplierName.toLowerCase() === updated.selectedSupplierName.toLowerCase());
+                if (qIdx !== -1) {
+                  comp.quotes[qIdx] = newQuote;
+                } else {
+                  comp.quotes.push(newQuote);
+                }
+              } else {
+                comp = {
+                  id: 'comp_' + Date.now(),
+                  productName: updated.productName,
+                  category: updated.category || 'Geral',
+                  unit: 'un',
+                  quotes: [newQuote]
+                };
+                next.unshift(comp);
+              }
+              try { localStorage.setItem('sd_supplier_comparisons_v3', JSON.stringify(next)); } catch {}
+              return next;
+            });
+          }
+
           setEditingMatItem(null);
-          toast({ title: '✅ Item atualizado com sucesso!' });
+          toast({ title: '✅ Item e cotação de fornecedor atualizados!' });
         }}
         suppliers={suppliers}
         comparisons={comparisons}
