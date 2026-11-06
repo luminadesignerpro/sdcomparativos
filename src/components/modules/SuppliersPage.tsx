@@ -2887,6 +2887,24 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
               <span>Comparativo ({activeComparisons.length})</span>
             </button>
 
+            {/* BOTÃO TODOS - Mostra todos os clientes/pastas */}
+            <button
+              onClick={() => {
+                setSelectedClientFolderId('all');
+                setActiveTab('material_list');
+                setShowFolderDropdown(false);
+              }}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 font-bold text-xs rounded-xl transition-all shrink-0 shadow-sm ${
+                selectedClientFolderId === 'all' && activeTab === 'material_list'
+                  ? 'bg-amber-500/25 border border-amber-500 text-amber-300 ring-1 ring-amber-500/40 font-black'
+                  : 'bg-white/5 text-gray-300 hover:text-white border border-white/10 hover:bg-white/10'
+              }`}
+              title="Ver todos os clientes"
+            >
+              <span style={{ fontSize: '14px' }}>📋</span>
+              <span>Todos</span>
+            </button>
+
             {/* SELETOR DE PASTAS / CLIENTES */}
             {(() => {
               const currentFolder = clientFolders.find(f => f.id === selectedClientFolderId) || clientFolders[0];
