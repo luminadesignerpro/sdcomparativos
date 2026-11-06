@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react";
+import React, { useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -22,55 +22,24 @@ const queryClient = new QueryClient({
 const SDComparativoApp: React.FC = () => {
   const handleVoltarAoOrcamento = () => {
     try {
-      const urlParams = new URLSearchParams(window.location.search);
-      const retornoBase = urlParams.get('retorno') || 'https://sdmoveisprojetados.vercel.app';
-      const cParam = (urlParams.get('cliente') || urlParams.get('pasta') || '').trim();
-
-      // Coleta materiais da pasta para enviar de volta ao orcamento
-      let itensRetorno: any[] = [];
-      try {
-        const savedMat = localStorage.getItem('sd_material_list_v1');
-        const matList = savedMat ? JSON.parse(savedMat) : [];
-        const savedFolders = localStorage.getItem('sd_client_folders_v1');
-        const folders = savedFolders ? JSON.parse(savedFolders) : [];
-        const activeFolder = cParam ? folders.find((f: any) => f.name.toLowerCase() === cParam.toLowerCase()) : null;
-        const targetId = activeFolder ? activeFolder.id : null;
-
-        let filtered: any[] = [];
-        if (targetId) {
-          filtered = matList.filter((m: any) => m.clientFolderId === targetId || m.clientName?.toLowerCase() === cParam.toLowerCase());
-        } else if (cParam) {
-          filtered = matList.filter((m: any) => m.clientName?.toLowerCase() === cParam.toLowerCase());
-        }
-        if (!filtered.length) {
-          filtered = matList;
-        }
-
-        itensRetorno = filtered.map((m: any) => ({
-          nome: m.productName,
-          qtd: m.quantity || 1,
-          vunit: m.selectedUnitPrice || 0,
-          fornecedor: m.selectedSupplierName || ''
-        }));
-      } catch {}
-
-      const urlObj = new URL(retornoBase, window.location.origin);
-      if (cParam) {
-        urlObj.searchParams.set('cliente', cParam);
-      }
-      if (itensRetorno.length > 0) {
-        urlObj.searchParams.set('itens', JSON.stringify(itensRetorno));
-      }
-      const retorno = urlObj.toString();
-
-      // 1. Tenta fechar se foi aberto via window.open
+      // 1. Tenta fechar se foi aberto via window.open / popup
       if (window.opener && !window.opener.closed) {
         window.close();
         return;
       }
 
-      // 2. Retorna para o orcamento com o cliente e itens na URL
-      window.location.href = retorno;
+      // 2. Se houver histórico de navegação, volta direto sem recarregar ou preencher parâmetros
+      if (window.history && window.history.length > 1) {
+        window.history.back();
+        return;
+      }
+
+      // 3. Fallback: redireciona para a URL do sistema limpa, SEM parâmetros de itens
+      const urlParams = new URLSearchParams(window.location.search);
+      const retornoBase = urlParams.get('retorno') || 'https://sdmoveisprojetados.vercel.app';
+      const cleanUrl = new URL(retornoBase, window.location.origin);
+      cleanUrl.search = '';
+      window.location.href = cleanUrl.toString();
     } catch {
       window.location.href = 'https://sdmoveisprojetados.vercel.app';
     }
