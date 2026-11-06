@@ -663,18 +663,21 @@ const SuppliersPage: React.FC = () => {
     ];
 
     if (cParam) {
-      const match = folders.find(f => f.name.trim().toLowerCase() === cParam.toLowerCase());
+      let match = folders.find(f => f.name.trim().toLowerCase() === cParam.toLowerCase());
       if (!match) {
-        const newFolder: ClientFolder = {
+        match = {
           id: 'f_' + Date.now(),
           name: cParam,
           createdAt: new Date().toISOString(),
           status: 'Pronto para Comprar',
           notes: 'Pasta do Cliente importada automaticamente do Orçamento SD Móveis'
         };
-        folders = [newFolder, ...folders];
-        try { localStorage.setItem('sd_client_folders_v1', JSON.stringify(folders)); } catch {}
+        folders = [match, ...folders];
       }
+      try {
+        localStorage.setItem('sd_client_folders_v1', JSON.stringify(folders));
+        localStorage.setItem('sd_selected_folder_id', match.id);
+      } catch {}
     }
     return folders;
   });
@@ -698,10 +701,10 @@ const SuppliersPage: React.FC = () => {
     localStorage.setItem('sd_selected_folder_id', selectedClientFolderId);
   }, [selectedClientFolderId]);
 
-  // Garante que a pasta selecionada sempre aponte para uma pasta válida existente
+  // Garante que a pasta selecionada sempre aponte para uma pasta válida existente ou 'all'
   useEffect(() => {
     if (clientFolders.length > 0) {
-      if (!selectedClientFolderId || selectedClientFolderId === 'all' || !clientFolders.some(f => f.id === selectedClientFolderId)) {
+      if (!selectedClientFolderId || (selectedClientFolderId !== 'all' && !clientFolders.some(f => f.id === selectedClientFolderId))) {
         setSelectedClientFolderId(clientFolders[0].id);
       }
     }
@@ -3822,11 +3825,16 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
 
       {/* ─── TAB 3: LISTA DE MATERIAIS DA COMPRA (COM PASTAS DE CLIENTES) ──── */}
       {activeTab === 'material_list' && (() => {
-        const activeFolder = clientFolders.find(f => f.id === selectedClientFolderId) || clientFolders[0];
+        const isAll = selectedClientFolderId === 'all';
+        const activeFolder = isAll
+          ? ({ id: 'all', name: 'Todos os Clientes', status: 'Pronto para Comprar', notes: 'Exibindo todos os produtos e cotações de todas as pastas', phone: '', createdAt: '' } as ClientFolder)
+          : (clientFolders.find(f => f.id === selectedClientFolderId) || clientFolders[0]);
         
-        const displayedList = activeFolder
-          ? Array.from(new Map(materialList.filter(item => item.clientFolderId === activeFolder.id || (item.clientName && item.clientName.trim().toLowerCase() === activeFolder.name.trim().toLowerCase())).map(m => [m.id || (m.productName + "_" + (m.selectedSupplierName || "")), m])).values())
-          : [];
+        const displayedList = isAll
+          ? materialList
+          : (activeFolder
+              ? Array.from(new Map(materialList.filter(item => item.clientFolderId === activeFolder.id || (item.clientName && item.clientName.trim().toLowerCase() === activeFolder.name.trim().toLowerCase())).map(m => [m.id || (m.productName + "_" + (m.selectedSupplierName || "")), m])).values())
+              : []);
 
         const folderTotalValue = displayedList.reduce((acc, item) => acc + item.total, 0);
         const folderSuppliersCount = new Set(displayedList.map(m => m.selectedSupplierName)).size;
@@ -3870,6 +3878,25 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
 
                 {/* Lista de pastas */}
                 <div className="max-h-[65vh] overflow-y-auto">
+                  {/* Opção Todos os Clientes */}
+                  <div
+                    onClick={() => setSelectedClientFolderId('all')}
+                    className={`group flex items-center gap-2.5 px-3.5 py-2.5 cursor-pointer transition-all border-b border-white/[0.06] ${
+                      selectedClientFolderId === 'all'
+                        ? 'bg-amber-500/20 text-amber-300 border-l-4 border-l-amber-500 font-bold'
+                        : 'text-gray-300 hover:bg-white/5 border-l-4 border-l-transparent'
+                    }`}
+                  >
+                    <Folder className="w-4 h-4 shrink-0 text-amber-400" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-black truncate">Todos os Clientes</div>
+                      <div className="text-[10px] text-gray-400">{materialList.length} {materialList.length === 1 ? 'item' : 'itens'} no total</div>
+                    </div>
+                    {selectedClientFolderId === 'all' && (
+                      <div className="w-2 h-2 rounded-full bg-amber-400 shrink-0 shadow-sm shadow-amber-400" />
+                    )}
+                  </div>
+
                   {clientFolders
                     .filter(f => {
                       const q = clientFolderSearch.toLowerCase().trim();
