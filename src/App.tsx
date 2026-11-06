@@ -36,7 +36,16 @@ const SDComparativoApp: React.FC = () => {
         const activeFolder = cParam ? folders.find((f: any) => f.name.toLowerCase() === cParam.toLowerCase()) : null;
         const targetId = activeFolder ? activeFolder.id : null;
 
-        const filtered = targetId ? matList.filter((m: any) => m.clientFolderId === targetId || m.clientName?.toLowerCase() === cParam.toLowerCase()) : matList.slice(0, 3);
+        let filtered: any[] = [];
+        if (targetId) {
+          filtered = matList.filter((m: any) => m.clientFolderId === targetId || m.clientName?.toLowerCase() === cParam.toLowerCase());
+        } else if (cParam) {
+          filtered = matList.filter((m: any) => m.clientName?.toLowerCase() === cParam.toLowerCase());
+        }
+        if (!filtered.length) {
+          filtered = matList;
+        }
+
         itensRetorno = filtered.map((m: any) => ({
           nome: m.productName,
           qtd: m.quantity || 1,
@@ -60,16 +69,7 @@ const SDComparativoApp: React.FC = () => {
         return;
       }
 
-      // 2. Se houver historico anterior, volta nele
-      if (window.history.length > 1) {
-        window.history.back();
-        setTimeout(() => {
-          window.location.href = retorno;
-        }, 350);
-        return;
-      }
-
-      // 3. Fallback direto para o retorno do orcamento
+      // 2. Retorna para o orcamento com o cliente e itens na URL
       window.location.href = retorno;
     } catch {
       window.location.href = 'https://sdmoveisprojetados.vercel.app';
