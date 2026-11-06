@@ -524,6 +524,16 @@ const getUrlItensParam = () => {
   }
 };
 
+const hasUrlItensParam = () => {
+  try {
+    if (typeof window === 'undefined') return false;
+    const p = new URLSearchParams(window.location.search);
+    return p.has('itens') || p.has('produtos') || p.has('produto');
+  } catch {
+    return false;
+  }
+};
+
 const SuppliersPage: React.FC = () => {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<string>(() => {
@@ -724,43 +734,71 @@ const SuppliersPage: React.FC = () => {
     localStorage.setItem('sd_client_folders_v1', JSON.stringify(clientFolders));
   }, [clientFolders]);
 
-  // Material List State (Tab 3)
+  // Material List State (Tab 3) - Sincronização estrita com o Orçamento
   const [materialList, setMaterialList] = useState<MaterialListItem[]>(() => {
     const cParam = getUrlClienteParam();
     const itensParam = getUrlItensParam();
+    const hasItens = hasUrlItensParam();
     const saved = localStorage.getItem('sd_material_list_v1');
     let list: MaterialListItem[] = saved ? JSON.parse(saved) : [];
 
-    if (cParam && itensParam.length > 0) {
+    if (cParam && hasItens) {
       const savedFolders = localStorage.getItem('sd_client_folders_v1');
       const folders: ClientFolder[] = savedFolders ? JSON.parse(savedFolders) : [];
       let targetFolder = folders.find(f => f.name.trim().toLowerCase() === cParam.toLowerCase());
       const targetFolderId = targetFolder ? targetFolder.id : ('f_' + Date.now());
 
-      itensParam.forEach((it: any, idx: number) => {
-        const nomeItem = (it.nome || it.desc || it.produto || '').trim();
-        if (nomeItem) {
-          const jaExiste = list.some(m => (m.clientFolderId === targetFolderId || m.clientName?.toLowerCase() === cParam.toLowerCase()) && m.productName.trim().toLowerCase() === nomeItem.toLowerCase());
-          if (!jaExiste) {
-            const unitPrice = parseFloat(String(it.vunit || it.preco || it.v_unit || 0).replace(',', '.')) || 0;
-            const qty = Math.max(1, parseInt(String(it.qtd || it.quantidade || 1)) || 1);
-            list.unshift({
-              id: 'mat_' + Date.now() + '_' + idx,
-              productId: 'prod_' + Date.now() + '_' + idx,
+      // 1. Preserva todos os materiais de OUTRAS pastas/clientes
+      const otherItems = list.filter(m => {
+        const isThisClient = (targetFolderId && m.clientFolderId === targetFolderId) ||
+                             (m.clientName && m.clientName.trim().toLowerCase() === cParam.toLowerCase());
+        return !isThisClient;
+      });
+
+      // 2. Itens anteriores desta pasta para reaproveitar cotações/fornecedor já escolhidos
+      const existingFolderItems = list.filter(m => {
+        return (targetFolderId && m.clientFolderId === targetFolderId) ||
+               (m.clientName && m.clientName.trim().toLowerCase() === cParam.toLowerCase());
+      });
+
+      // 3. Monta a pasta com SOMENTE os produtos que vieram do orçamento (itens excluídos no orçamento são descartados)
+      const syncedFolderItems: MaterialListItem[] = itensParam
+        .filter((it: any) => (it.nome || it.desc || it.produto || '').trim())
+        .map((it: any, idx: number) => {
+          const nomeItem = (it.nome || it.desc || it.produto || '').trim();
+          const existing = existingFolderItems.find(m => m.productName.trim().toLowerCase() === nomeItem.toLowerCase());
+          const unitPrice = parseFloat(String(it.vunit || it.preco || it.v_unit || 0).replace(',', '.')) || (existing?.selectedUnitPrice || 0);
+          const qty = Math.max(1, parseInt(String(it.qtd || it.quantidade || 1)) || (existing?.quantity || 1));
+
+          if (existing) {
+            return {
+              ...existing,
               productName: nomeItem,
-              category: it.categoria || 'Geral',
-              selectedSupplierName: it.fornecedor || 'Fornecedor Principal',
-              selectedBrand: it.marca || 'Padrão',
-              selectedUnitPrice: unitPrice,
               quantity: qty,
-              total: unitPrice * qty,
-              isCheapestSelected: true,
+              selectedUnitPrice: unitPrice > 0 ? unitPrice : existing.selectedUnitPrice,
+              total: (unitPrice > 0 ? unitPrice : existing.selectedUnitPrice) * qty,
               clientName: cParam,
               clientFolderId: targetFolderId
-            });
+            };
           }
-        }
-      });
+
+          return {
+            id: 'mat_' + Date.now() + '_' + idx,
+            productId: 'prod_' + Date.now() + '_' + idx,
+            productName: nomeItem,
+            category: it.categoria || 'Geral',
+            selectedSupplierName: it.fornecedor || 'Fornecedor Principal',
+            selectedBrand: it.marca || 'Padrão',
+            selectedUnitPrice: unitPrice,
+            quantity: qty,
+            total: unitPrice * qty,
+            isCheapestSelected: true,
+            clientName: cParam,
+            clientFolderId: targetFolderId
+          };
+        });
+
+      list = [...syncedFolderItems, ...otherItems];
       try { localStorage.setItem('sd_material_list_v1', JSON.stringify(list)); } catch {}
     }
     return list;
@@ -804,12 +842,13 @@ const SuppliersPage: React.FC = () => {
     try {
       const cParam = getUrlClienteParam();
       const itensParam = getUrlItensParam();
+      const hasItens = hasUrlItensParam();
 
       if (cParam) {
+        let resolvedFolderId = '';
         setClientFolders(prev => {
           let match = prev.find(f => f.name.trim().toLowerCase() === cParam.toLowerCase());
           let updated = prev;
-          let targetFolderId = '';
           if (!match) {
             const newF = {
               id: 'f_' + Date.now(),
@@ -819,50 +858,75 @@ const SuppliersPage: React.FC = () => {
               notes: 'Pasta do Cliente importada automaticamente do Orçamento SD Móveis'
             };
             updated = [newF, ...prev];
-            targetFolderId = newF.id;
+            resolvedFolderId = newF.id;
             try { localStorage.setItem('sd_client_folders_v1', JSON.stringify(updated)); } catch {}
           } else {
-            targetFolderId = match.id;
+            resolvedFolderId = match.id;
           }
 
-          if (itensParam.length > 0) {
+          // Se a URL enviou itens (mesmo se vazio após exclusões no orçamento), espelha rigorosamente a pasta do cliente
+          if (hasItens) {
             setMaterialList(prevList => {
-              let nextList = [...prevList];
-              let alterou = false;
-              itensParam.forEach((it: any, idx: number) => {
-                const nomeItem = (it.nome || it.desc || it.produto || '').trim();
-                if (nomeItem) {
-                  const jaExiste = nextList.some(m => (m.clientFolderId === targetFolderId || m.clientName?.toLowerCase() === cParam.toLowerCase()) && m.productName.trim().toLowerCase() === nomeItem.toLowerCase());
-                  if (!jaExiste) {
-                    const unitPrice = parseFloat(String(it.vunit || it.preco || it.v_unit || 0).replace(',', '.')) || 0;
-                    const qty = Math.max(1, parseInt(String(it.qtd || it.quantidade || 1)) || 1);
-                    nextList.unshift({
-                      id: 'mat_' + Date.now() + '_' + idx,
-                      productId: 'prod_' + Date.now() + '_' + idx,
-                      productName: nomeItem,
-                      category: it.categoria || 'Geral',
-                      selectedSupplierName: it.fornecedor || 'Fornecedor Principal',
-                      selectedBrand: it.marca || 'Padrão',
-                      selectedUnitPrice: unitPrice,
-                      quantity: qty,
-                      total: unitPrice * qty,
-                      isCheapestSelected: true,
-                      clientName: cParam,
-                      clientFolderId: targetFolderId
-                    });
-                    alterou = true;
-                  }
-                }
+              const otherItems = prevList.filter(m => {
+                const isThisClient = (resolvedFolderId && m.clientFolderId === resolvedFolderId) ||
+                                     (m.clientName && m.clientName.trim().toLowerCase() === cParam.toLowerCase());
+                return !isThisClient;
               });
-              if (alterou) {
-                try { localStorage.setItem('sd_material_list_v1', JSON.stringify(nextList)); } catch {}
-              }
+
+              const existingFolderItems = prevList.filter(m => {
+                return (resolvedFolderId && m.clientFolderId === resolvedFolderId) ||
+                       (m.clientName && m.clientName.trim().toLowerCase() === cParam.toLowerCase());
+              });
+
+              // Mantém na pasta SOMENTE os itens presentes no orçamento
+              const syncedFolderItems: MaterialListItem[] = itensParam
+                .filter((it: any) => (it.nome || it.desc || it.produto || '').trim())
+                .map((it: any, idx: number) => {
+                  const nomeItem = (it.nome || it.desc || it.produto || '').trim();
+                  const existing = existingFolderItems.find(m => m.productName.trim().toLowerCase() === nomeItem.toLowerCase());
+                  const unitPrice = parseFloat(String(it.vunit || it.preco || it.v_unit || 0).replace(',', '.')) || (existing?.selectedUnitPrice || 0);
+                  const qty = Math.max(1, parseInt(String(it.qtd || it.quantidade || 1)) || (existing?.quantity || 1));
+
+                  if (existing) {
+                    return {
+                      ...existing,
+                      productName: nomeItem,
+                      quantity: qty,
+                      selectedUnitPrice: unitPrice > 0 ? unitPrice : existing.selectedUnitPrice,
+                      total: (unitPrice > 0 ? unitPrice : existing.selectedUnitPrice) * qty,
+                      clientName: cParam,
+                      clientFolderId: resolvedFolderId
+                    };
+                  }
+
+                  return {
+                    id: 'mat_' + Date.now() + '_' + idx,
+                    productId: 'prod_' + Date.now() + '_' + idx,
+                    productName: nomeItem,
+                    category: it.categoria || 'Geral',
+                    selectedSupplierName: it.fornecedor || 'Fornecedor Principal',
+                    selectedBrand: it.marca || 'Padrão',
+                    selectedUnitPrice: unitPrice,
+                    quantity: qty,
+                    total: unitPrice * qty,
+                    isCheapestSelected: true,
+                    clientName: cParam,
+                    clientFolderId: resolvedFolderId
+                  };
+                });
+
+              const nextList = [...syncedFolderItems, ...otherItems];
+              try { localStorage.setItem('sd_material_list_v1', JSON.stringify(nextList)); } catch {}
               return nextList;
             });
           }
 
           return updated;
         });
+
+        if (resolvedFolderId) {
+          setSelectedClientFolderId(resolvedFolderId);
+        }
       }
     } catch {}
   }, []);
