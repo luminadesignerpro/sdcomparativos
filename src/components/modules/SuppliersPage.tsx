@@ -81,6 +81,10 @@ interface MaterialListItem {
   isCheapestSelected: boolean;
   clientName?: string;
   clientFolderId?: string;
+  status?: 'a_comprar' | 'pendente' | 'comprado';
+  urgencia?: 'normal' | 'urgente' | 'critico';
+  obs?: string;
+  os?: string;
 }
 
 interface BatchImportItem {
@@ -717,6 +721,8 @@ const SuppliersPage: React.FC = () => {
   const [clientFolderSearch, setClientFolderSearch] = useState('');
   const [clientFolderStatusFilter, setClientFolderStatusFilter] = useState<'Todos' | 'Pronto para Comprar' | 'Em Cotação' | 'Comprado'>('Todos');
   const [folderViewMode, setFolderViewMode] = useState<'grid' | 'table'>('grid');
+  const [matViewMode, setMatViewMode] = useState<'cards' | 'table'>('cards');
+  const [matStatusFilter, setMatStatusFilter] = useState<'todos' | 'a_comprar' | 'pendente' | 'comprado'>('todos');
   
   // Modal de Exportação e Envio (Com ou Sem Valores para PDF e WhatsApp)
   const [exportModal, setExportModal] = useState<{
@@ -2122,8 +2128,26 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
     });
   };
 
+  const handleUpdateItemStatus = (id: string, newStatus: 'a_comprar' | 'pendente' | 'comprado') => {
+    const updated = materialList.map(m => m.id === id ? { ...m, status: newStatus } : m);
+    setMaterialList(updated);
+    try {
+      localStorage.setItem('sd_material_list_v1', JSON.stringify(updated));
+    } catch {}
+    const labels = {
+      a_comprar: '🛒 Item marcado como A Comprar',
+      pendente: '⏳ Item marcado como Pendente',
+      comprado: '✅ Item marcado como Comprado'
+    };
+    toast({ title: labels[newStatus] || 'Status atualizado' });
+  };
+
   const handleDeleteMaterialItem = (id: string) => {
-    setMaterialList(materialList.filter(m => m.id !== id));
+    const updated = materialList.filter(m => m.id !== id);
+    setMaterialList(updated);
+    try {
+      localStorage.setItem('sd_material_list_v1', JSON.stringify(updated));
+    } catch {}
     toast({ title: '🗑️ Item removido da lista' });
   };
 
@@ -4109,28 +4133,122 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
                     )}
                   </div>
 
-                  {/* ─── TABELA DE ITENS DA PASTA ─── */}
-                  <div className="bg-[#111317] border border-white/10 rounded-3xl shadow-2xl overflow-x-auto text-white space-y-2 p-1">
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center px-4 py-2.5 border-b border-white/5 gap-2">
-                      <span className="text-xs font-black text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
-                        <ClipboardList className="w-4 h-4 text-amber-400" /> Itens de Compra — {activeFolder.name} ({displayedList.length} itens):
-                      </span>
+                  {/* ─── ITENS DA PASTA (MODO CARDS IDÊNTICO À IMAGEM 1 + TABELA) ─── */}
+                  {(() => {
+                    const countAComprar = displayedList.filter(it => (it.status || 'a_comprar') === 'a_comprar').length;
+                    const countPendente = displayedList.filter(it => it.status === 'pendente').length;
+                    const countComprado = displayedList.filter(it => it.status === 'comprado').length;
+                    const listToRender = matStatusFilter === 'todos'
+                      ? displayedList
+                      : displayedList.filter(it => (it.status || 'a_comprar') === matStatusFilter);
 
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <button
-                          onClick={() => {
-                            setShowAddMatForm(true);
-                            setAddMatMode('select');
-                            if (comparisons.length > 0) handleSelectProductForMatList(comparisons[0].id);
-                          }}
-                          className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow transition-all hover:scale-[1.02] cursor-pointer"
-                        >
-                          <Plus className="w-3.5 h-3.5" /> Adicionar Material
-                        </button>
+                    return (
+                      <div className="space-y-3">
+                        {/* 3 Contadores de Status Idênticos à Imagem 1 */}
+                        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setMatStatusFilter(prev => prev === 'a_comprar' ? 'todos' : 'a_comprar')}
+                            className={`p-3 rounded-2xl border text-center transition-all cursor-pointer ${
+                              matStatusFilter === 'a_comprar'
+                                ? 'bg-red-500/25 border-red-500 shadow-lg shadow-red-500/20 scale-[1.02]'
+                                : 'bg-[#1b1215] border-red-500/30 hover:border-red-500/60'
+                            }`}
+                          >
+                            <span className="text-[10px] sm:text-xs font-black text-red-400 uppercase tracking-wider block">
+                              🛒 A Comprar
+                            </span>
+                            <span className="text-xl sm:text-2xl font-black text-red-400 block mt-0.5">
+                              {countAComprar}
+                            </span>
+                          </button>
 
-                        <span className="text-xs text-emerald-400 font-black">
-                          Total: R$ {folderTotalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </span>
+                          <button
+                            type="button"
+                            onClick={() => setMatStatusFilter(prev => prev === 'pendente' ? 'todos' : 'pendente')}
+                            className={`p-3 rounded-2xl border text-center transition-all cursor-pointer ${
+                              matStatusFilter === 'pendente'
+                                ? 'bg-amber-500/25 border-amber-500 shadow-lg shadow-amber-500/20 scale-[1.02]'
+                                : 'bg-[#1b1710] border-amber-500/30 hover:border-amber-500/60'
+                            }`}
+                          >
+                            <span className="text-[10px] sm:text-xs font-black text-amber-400 uppercase tracking-wider block">
+                              ⏳ Pendente
+                            </span>
+                            <span className="text-xl sm:text-2xl font-black text-amber-400 block mt-0.5">
+                              {countPendente}
+                            </span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setMatStatusFilter(prev => prev === 'comprado' ? 'todos' : 'comprado')}
+                            className={`p-3 rounded-2xl border text-center transition-all cursor-pointer ${
+                              matStatusFilter === 'comprado'
+                                ? 'bg-emerald-500/25 border-emerald-500 shadow-lg shadow-emerald-500/20 scale-[1.02]'
+                                : 'bg-[#0f1b16] border-emerald-500/30 hover:border-emerald-500/60'
+                            }`}
+                          >
+                            <span className="text-[10px] sm:text-xs font-black text-emerald-400 uppercase tracking-wider block">
+                              ✅ Comprado
+                            </span>
+                            <span className="text-xl sm:text-2xl font-black text-emerald-400 block mt-0.5">
+                              {countComprado}
+                            </span>
+                          </button>
+                        </div>
+
+                        {/* Banner da Pasta (Idêntico ao da Imagem 1) */}
+                        <div className="bg-gradient-to-r from-amber-500/15 via-[#1a1810] to-[#111317] border-1.5 border-amber-500/60 rounded-2xl p-3.5 flex justify-between items-center flex-wrap gap-2 shadow-lg">
+                          <div>
+                            <div className="text-sm sm:text-base font-black text-white flex items-center gap-1.5">
+                              <span>📁</span>
+                              <span>Pedido Separado: <strong className="text-amber-300">{activeFolder.name}</strong></span>
+                            </div>
+                            <div className="text-xs text-slate-300 mt-0.5 font-medium">
+                              Exibindo <strong>{listToRender.length}</strong> item(ns) deste cliente.
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowAddMatForm(true);
+                                setAddMatMode('select');
+                                if (comparisons.length > 0) handleSelectProductForMatList(comparisons[0].id);
+                              }}
+                              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow transition-all hover:scale-[1.02] cursor-pointer"
+                            >
+                              <Plus className="w-3.5 h-3.5" /> Adicionar Material
+                            </button>
+
+                            <div className="flex bg-black/40 border border-white/10 rounded-xl p-0.5">
+                              <button
+                                type="button"
+                                onClick={() => setMatViewMode('cards')}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                  matViewMode === 'cards' ? 'bg-amber-500 text-black shadow' : 'text-slate-400 hover:text-white'
+                                }`}
+                                title="Visualização em Cards (como Imagem 1)"
+                              >
+                                🎴 Cards
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setMatViewMode('table')}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                  matViewMode === 'table' ? 'bg-amber-500 text-black shadow' : 'text-slate-400 hover:text-white'
+                                }`}
+                                title="Visualização em Tabela"
+                              >
+                                📋 Tabela
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Aviso de Não Encontrados nos Fornecedores */}
                         {(() => {
                           const regNames = new Set(suppliers.map(s => s.name.trim().toLowerCase()));
                           const unquoted = displayedList.filter(it => {
@@ -4140,157 +4258,360 @@ Retorne EXATAMENTE um JSON válido com esta estrutura:
                           }).length;
                           if (unquoted > 0) {
                             return (
-                              <span className="bg-amber-500/15 border border-amber-500/40 text-amber-300 text-[11px] font-black px-2.5 py-1 rounded-xl flex items-center gap-1 shadow-sm">
-                                <span>⚠️</span>
-                                <span>{unquoted} {unquoted === 1 ? 'não encontrado' : 'não encontrados'} nos fornecedores</span>
-                              </span>
+                              <div className="bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs font-bold px-3 py-2 rounded-xl flex items-center justify-between gap-2 shadow-sm">
+                                <span className="flex items-center gap-1.5">
+                                  <span>⚠️</span>
+                                  <span>{unquoted} {unquoted === 1 ? 'item não encontrado' : 'itens não encontrados'} nos fornecedores</span>
+                                </span>
+                                <span className="text-amber-400/80 text-[11px] font-normal hidden sm:inline">Clique em "+ Cotar" para vincular fornecedor</span>
+                              </div>
                             );
                           }
-                          return (
-                            <span className="bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-[11px] font-black px-2.5 py-1 rounded-xl flex items-center gap-1 shadow-sm">
-                              <span>✅</span>
-                              <span>Todos os itens cotados nos fornecedores</span>
-                            </span>
-                          );
+                          return null;
                         })()}
-                      </div>
-                    </div>
 
-                    <table className="w-full min-w-[700px]">
-                      <thead className="bg-[#16191f] border-b border-white/10">
-                        <tr>
-                          <th className="text-left py-2.5 px-3 text-[11px] font-black text-amber-400 uppercase">Produto / Material</th>
-                          <th className="text-left py-2.5 px-3 text-[11px] font-black text-purple-400 uppercase">Pasta / Cliente</th>
-                          <th className="text-left py-2.5 px-3 text-[11px] font-black text-emerald-400 uppercase">Fornecedor Selecionado</th>
-                          <th className="text-left py-2.5 px-3 text-[11px] font-black text-gray-400 uppercase">Marca</th>
-                          <th className="text-center py-2.5 px-3 text-[11px] font-black text-gray-400 uppercase">Qtd</th>
-                          <th className="text-right py-2.5 px-3 text-[11px] font-black text-gray-400 uppercase">Valor Unit.</th>
-                          <th className="text-right py-2.5 px-3 text-[11px] font-black text-emerald-400 uppercase">Subtotal</th>
-                          <th className="text-center py-2.5 px-3 text-[11px] font-black text-gray-400 uppercase">Ações</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {displayedList.map(item => {
-                          const compProd = findProductMatch(item, comparisons);
-                          const registeredSupplierNames = new Set(suppliers.map(s => s.name.trim().toLowerCase()));
-                          const validQuotes = (compProd?.quotes || []).filter(q => {
-                            if (!q || !q.supplierName) return false;
-                            const p = q.unitPrice || q.price || 0;
-                            return p > 0 && registeredSupplierNames.has(q.supplierName.trim().toLowerCase());
-                          });
+                        {/* ── VISUALIZAÇÃO EM CARDS (IDÊNTICO À IMAGEM 1) ── */}
+                        {matViewMode === 'cards' ? (
+                          <div className="space-y-3">
+                            {listToRender.map(item => {
+                              const compProd = findProductMatch(item, comparisons);
+                              const registeredSupplierNames = new Set(suppliers.map(s => s.name.trim().toLowerCase()));
+                              const validQuotes = (compProd?.quotes || []).filter(q => {
+                                if (!q || !q.supplierName) return false;
+                                const p = q.unitPrice || q.price || 0;
+                                return p > 0 && registeredSupplierNames.has(q.supplierName.trim().toLowerCase());
+                              });
 
-                          const hasQuotes = validQuotes.length > 0;
-                          const sortedQuotes = hasQuotes
-                            ? [...validQuotes].sort((a, b) => (a.unitPrice || a.price || 0) - (b.unitPrice || b.price || 0))
-                            : [];
+                              const hasQuotes = validQuotes.length > 0;
+                              const sortedQuotes = hasQuotes
+                                ? [...validQuotes].sort((a, b) => (a.unitPrice || a.price || 0) - (b.unitPrice || b.price || 0))
+                                : [];
 
-                          const cheapestQuote = sortedQuotes[0] || null;
-                          const minPrice = cheapestQuote ? (cheapestQuote.unitPrice || cheapestQuote.price || 0) : item.selectedUnitPrice;
-                          const cheapestSupplierName = cheapestQuote ? cheapestQuote.supplierName : '';
+                              const cheapestQuote = sortedQuotes[0] || null;
+                              const minPrice = cheapestQuote ? (cheapestQuote.unitPrice || cheapestQuote.price || 0) : item.selectedUnitPrice;
+                              const cheapestSupplierName = cheapestQuote ? cheapestQuote.supplierName : '';
 
-                          const hasValidSelected = item.selectedSupplierName && registeredSupplierNames.has(item.selectedSupplierName.trim().toLowerCase());
-                          const effectiveSupplier = hasValidSelected ? item.selectedSupplierName : cheapestSupplierName;
+                              const hasValidSelected = item.selectedSupplierName && registeredSupplierNames.has(item.selectedSupplierName.trim().toLowerCase());
+                              const effectiveSupplier = hasValidSelected ? item.selectedSupplierName : cheapestSupplierName;
 
-                          const currentPrice = item.selectedUnitPrice;
-                          const isCheapest = hasQuotes && (currentPrice <= minPrice + 0.01 || (effectiveSupplier && effectiveSupplier.toLowerCase() === cheapestSupplierName.toLowerCase()));
-                          const diff = hasQuotes ? Math.max(0, currentPrice - minPrice) : 0;
+                              const currentPrice = item.selectedUnitPrice;
+                              const isCheapest = hasQuotes && (currentPrice <= minPrice + 0.01 || (effectiveSupplier && effectiveSupplier.toLowerCase() === cheapestSupplierName.toLowerCase()));
+                              const diff = hasQuotes ? Math.max(0, currentPrice - minPrice) : 0;
 
-                          return (
-                            <tr key={item.id} className="border-t border-white/5 hover:bg-white/5 transition-colors">
-                              <td className="py-2.5 px-3 font-bold text-white text-xs sm:text-sm">
-                                <div className="leading-tight">{item.productName}</div>
-                                <span className="block text-[10px] text-amber-500/80 font-normal mt-0.5">{item.category}</span>
-                              </td>
-                              <td className="py-2.5 px-3">
-                                <span className="bg-purple-500/15 border border-purple-500/30 text-purple-300 text-xs font-bold px-2.5 py-1 rounded-xl flex items-center gap-1 w-fit">
-                                  📁 {item.clientName || activeFolder.name}
-                                </span>
-                              </td>
-                              <td className="py-2.5 px-3">
-                                {!hasQuotes ? (
-                                  <div className="flex flex-col gap-0.5 items-start">
-                                    <span className="font-extrabold text-amber-400 text-xs flex items-center gap-1">
-                                      ⚠️ Não encontrado
-                                    </span>
-                                    <div className="flex items-center gap-1">
-                                      <span className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider">
-                                        Sem Cotação
-                                      </span>
-                                      <button
-                                        type="button"
-                                        onClick={() => setEditingMatItem(item)}
-                                        className="text-[10px] text-amber-400 hover:text-amber-300 underline font-bold ml-1 cursor-pointer"
-                                        title="Adicionar cotação de fornecedor"
-                                      >
-                                        + Cotar
-                                      </button>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <div className="flex flex-col gap-0.5 items-start">
-                                    <span className="font-extrabold text-white text-xs flex items-center gap-1 truncate max-w-[170px]" title={effectiveSupplier}>
-                                      🏢 {effectiveSupplier}
-                                    </span>
-                                    <div className="flex items-center gap-1.5 flex-wrap">
-                                      {isCheapest ? (
-                                        <span className="bg-emerald-500 text-black text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider shadow-sm flex items-center gap-1">
-                                          🏆 MENOR PREÇO
+                              const curStatus = item.status || 'a_comprar';
+                              const st = {
+                                a_comprar: { label: '🛒 A Comprar', color: '#f87171', bg: 'rgba(239,68,68,0.12)', border: 'rgba(239,68,68,0.35)' },
+                                pendente: { label: '⏳ Pendente', color: '#fbbf24', bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.35)' },
+                                comprado: { label: '✅ Comprado', color: '#34d399', bg: 'rgba(16,185,129,0.12)', border: 'rgba(16,185,129,0.35)' }
+                              }[curStatus];
+
+                              return (
+                                <div
+                                  key={item.id}
+                                  className="bg-[#151922] border rounded-2xl p-3.5 sm:p-4 flex flex-col gap-2.5 transition-all shadow-lg hover:border-amber-500/50"
+                                  style={{ borderColor: st.border }}
+                                >
+                                  {/* Top Header do Card: Título + Badge de Pasta/Cliente + Status e Urgência */}
+                                  <div className="flex justify-between items-start gap-2 flex-wrap">
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                                        <h4 className="font-black text-sm sm:text-base text-white leading-tight">
+                                          {item.productName}
+                                        </h4>
+                                        <span className="text-[11px] font-black bg-amber-500/15 border border-amber-500/30 text-amber-300 px-2 py-0.5 rounded-lg inline-flex items-center gap-1">
+                                          📁 {item.clientName || activeFolder.name}
                                         </span>
-                                      ) : (
-                                        diff > 0 && (
-                                          <span className="bg-red-500/15 border border-red-500/30 text-red-400 text-[9px] font-bold px-1.5 py-0.5 rounded-md">
-                                            + R$ {diff.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                          </span>
-                                        )
-                                      )}
-                                      {sortedQuotes.length > 1 && (
-                                        <button
-                                          type="button"
-                                          onClick={() => setEditingMatItem(item)}
-                                          className="text-[9.5px] text-slate-400 hover:text-emerald-400 underline font-semibold transition-colors"
-                                          title="Clique para alternar entre fornecedores cotados"
-                                        >
-                                          ({sortedQuotes.length} fornecedores)
-                                        </button>
-                                      )}
+                                      </div>
+
+                                      {/* Linha de Cotação de Fornecedores */}
+                                      <div className="flex items-center gap-1.5 flex-wrap my-1">
+                                        {!hasQuotes ? (
+                                          <div className="flex items-center gap-1.5 flex-wrap">
+                                            <span className="font-extrabold text-amber-400 text-xs flex items-center gap-1">
+                                              ⚠️ Não encontrado nos fornecedores
+                                            </span>
+                                            <span className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[9.5px] font-black px-1.5 py-0.5 rounded uppercase">
+                                              Sem Cotação
+                                            </span>
+                                            <button
+                                              type="button"
+                                              onClick={() => setEditingMatItem(item)}
+                                              className="text-[10.5px] text-amber-400 hover:text-amber-300 underline font-bold cursor-pointer"
+                                            >
+                                              + Cotar
+                                            </button>
+                                          </div>
+                                        ) : (
+                                          <div className="flex items-center gap-1.5 flex-wrap">
+                                            <span className="font-extrabold text-white text-xs flex items-center gap-1 truncate max-w-[200px]" title={effectiveSupplier}>
+                                              🏢 {effectiveSupplier}
+                                            </span>
+                                            {isCheapest ? (
+                                              <span className="bg-emerald-500 text-black text-[9.5px] font-black px-2 py-0.5 rounded uppercase tracking-wider flex items-center gap-1 shadow-sm">
+                                                🏆 MENOR PREÇO
+                                              </span>
+                                            ) : (
+                                              diff > 0 && (
+                                                <span className="bg-red-500/15 border border-red-500/30 text-red-400 text-[9.5px] font-bold px-1.5 py-0.5 rounded">
+                                                  + R$ {diff.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                </span>
+                                              )
+                                            )}
+                                            {sortedQuotes.length > 1 && (
+                                              <button
+                                                type="button"
+                                                onClick={() => setEditingMatItem(item)}
+                                                className="text-[10px] text-slate-400 hover:text-emerald-400 underline font-semibold cursor-pointer"
+                                              >
+                                                ({sortedQuotes.length} fornecedores)
+                                              </button>
+                                            )}
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      {/* Valores: Qtd · Unit · Total */}
+                                      <div className="text-xs text-slate-300 mt-1 flex items-center gap-1.5 flex-wrap font-medium">
+                                        <span>Qtd: <strong className="text-white font-bold">{item.quantity} un</strong></span>
+                                        <span>·</span>
+                                        <span>Unit: <strong className="text-white font-bold">R$ {item.selectedUnitPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
+                                        <span>·</span>
+                                        <span>Total: <strong className="text-amber-300 font-black">R$ {item.total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
+                                        {item.selectedBrand && item.selectedBrand !== 'Padrão' && item.selectedBrand !== 'Geral' && (
+                                          <>
+                                            <span>·</span>
+                                            <span className="text-slate-400">🏷️ {item.selectedBrand}</span>
+                                          </>
+                                        )}
+                                      </div>
+
+                                      {/* Obs / Detalhes */}
+                                      <div className="text-[11px] text-slate-400 mt-1">
+                                        {item.obs || `OS de ${item.clientName || activeFolder.name} - Enviado via Assinatura Digital`}
+                                      </div>
+                                    </div>
+
+                                    {/* Badges à Direita: Status e Urgência */}
+                                    <div className="flex flex-col items-end gap-1 shrink-0">
+                                      <span
+                                        className="text-[10.5px] font-extrabold px-2.5 py-1 rounded-full border shadow-sm"
+                                        style={{ background: st.bg, color: st.color, borderColor: st.border }}
+                                      >
+                                        {st.label}
+                                      </span>
+                                      <span className="text-[10px] text-amber-400 font-bold flex items-center gap-0.5">
+                                        🔥 Urgente
+                                      </span>
                                     </div>
                                   </div>
+
+                                  {/* AÇÕES: Botões no rodapé idênticos à Imagem 1 */}
+                                  <div className="flex gap-1.5 flex-wrap pt-2 border-t border-white/5">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleUpdateItemStatus(item.id, 'a_comprar')}
+                                      className={`flex-1 py-1.5 px-2 text-[11px] font-bold rounded-lg cursor-pointer transition-all border ${
+                                        curStatus === 'a_comprar'
+                                          ? 'bg-red-500/25 border-red-500/60 text-red-400 shadow-sm'
+                                          : 'bg-white/[0.04] border-white/10 text-slate-400 hover:text-white'
+                                      }`}
+                                    >
+                                      🛒 A Comprar
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleUpdateItemStatus(item.id, 'pendente')}
+                                      className={`flex-1 py-1.5 px-2 text-[11px] font-bold rounded-lg cursor-pointer transition-all border ${
+                                        curStatus === 'pendente'
+                                          ? 'bg-amber-500/25 border-amber-500/60 text-amber-300 shadow-sm'
+                                          : 'bg-white/[0.04] border-white/10 text-slate-400 hover:text-white'
+                                      }`}
+                                    >
+                                      ⏳ Pendente
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleUpdateItemStatus(item.id, 'comprado')}
+                                      className={`flex-1 py-1.5 px-2 text-[11px] font-bold rounded-lg cursor-pointer transition-all border ${
+                                        curStatus === 'comprado'
+                                          ? 'bg-emerald-500/25 border-emerald-500/60 text-emerald-400 shadow-sm'
+                                          : 'bg-white/[0.04] border-white/10 text-slate-400 hover:text-white'
+                                      }`}
+                                    >
+                                      ✅ Comprado
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditingMatItem(item)}
+                                      className="p-1.5 px-2.5 text-xs bg-amber-500/15 border border-amber-500/30 text-amber-300 rounded-lg hover:bg-amber-500/25 transition-all cursor-pointer"
+                                      title="Editar item"
+                                    >
+                                      ✏️
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteMaterialItem(item.id)}
+                                      className="p-1.5 px-2.5 text-xs bg-red-500/15 border border-red-500/30 text-red-400 rounded-lg hover:bg-red-500/25 transition-all cursor-pointer"
+                                      title="Excluir item"
+                                    >
+                                      🗑️
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+
+                            {listToRender.length === 0 && (
+                              <div className="bg-[#111317] border border-white/10 rounded-2xl p-8 text-center text-gray-500 text-sm">
+                                {matStatusFilter !== 'todos'
+                                  ? `Nenhum material com status "${matStatusFilter}" encontrado nesta pasta.`
+                                  : 'Nenhum material adicionado a esta pasta no momento.'}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          /* ── VISUALIZAÇÃO EM TABELA ── */
+                          <div className="bg-[#111317] border border-white/10 rounded-3xl shadow-2xl overflow-x-auto text-white space-y-2 p-1">
+                            <table className="w-full min-w-[700px]">
+                              <thead className="bg-[#16191f] border-b border-white/10">
+                                <tr>
+                                  <th className="text-left py-2.5 px-3 text-[11px] font-black text-amber-400 uppercase">Produto / Material</th>
+                                  <th className="text-left py-2.5 px-3 text-[11px] font-black text-purple-400 uppercase">Pasta / Cliente</th>
+                                  <th className="text-left py-2.5 px-3 text-[11px] font-black text-emerald-400 uppercase">Fornecedor Selecionado</th>
+                                  <th className="text-left py-2.5 px-3 text-[11px] font-black text-gray-400 uppercase">Marca</th>
+                                  <th className="text-center py-2.5 px-3 text-[11px] font-black text-gray-400 uppercase">Qtd</th>
+                                  <th className="text-right py-2.5 px-3 text-[11px] font-black text-gray-400 uppercase">Valor Unit.</th>
+                                  <th className="text-right py-2.5 px-3 text-[11px] font-black text-emerald-400 uppercase">Subtotal</th>
+                                  <th className="text-center py-2.5 px-3 text-[11px] font-black text-gray-400 uppercase">Ações</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {listToRender.map(item => {
+                                  const compProd = findProductMatch(item, comparisons);
+                                  const registeredSupplierNames = new Set(suppliers.map(s => s.name.trim().toLowerCase()));
+                                  const validQuotes = (compProd?.quotes || []).filter(q => {
+                                    if (!q || !q.supplierName) return false;
+                                    const p = q.unitPrice || q.price || 0;
+                                    return p > 0 && registeredSupplierNames.has(q.supplierName.trim().toLowerCase());
+                                  });
+
+                                  const hasQuotes = validQuotes.length > 0;
+                                  const sortedQuotes = hasQuotes
+                                    ? [...validQuotes].sort((a, b) => (a.unitPrice || a.price || 0) - (b.unitPrice || b.price || 0))
+                                    : [];
+
+                                  const cheapestQuote = sortedQuotes[0] || null;
+                                  const minPrice = cheapestQuote ? (cheapestQuote.unitPrice || cheapestQuote.price || 0) : item.selectedUnitPrice;
+                                  const cheapestSupplierName = cheapestQuote ? cheapestQuote.supplierName : '';
+
+                                  const hasValidSelected = item.selectedSupplierName && registeredSupplierNames.has(item.selectedSupplierName.trim().toLowerCase());
+                                  const effectiveSupplier = hasValidSelected ? item.selectedSupplierName : cheapestSupplierName;
+
+                                  const currentPrice = item.selectedUnitPrice;
+                                  const isCheapest = hasQuotes && (currentPrice <= minPrice + 0.01 || (effectiveSupplier && effectiveSupplier.toLowerCase() === cheapestSupplierName.toLowerCase()));
+                                  const diff = hasQuotes ? Math.max(0, currentPrice - minPrice) : 0;
+
+                                  return (
+                                    <tr key={item.id} className="border-t border-white/5 hover:bg-white/5 transition-colors">
+                                      <td className="py-2.5 px-3 font-bold text-white text-xs sm:text-sm">
+                                        <div className="leading-tight">{item.productName}</div>
+                                        <span className="block text-[10px] text-amber-500/80 font-normal mt-0.5">{item.category}</span>
+                                      </td>
+                                      <td className="py-2.5 px-3">
+                                        <span className="bg-purple-500/15 border border-purple-500/30 text-purple-300 text-xs font-bold px-2.5 py-1 rounded-xl flex items-center gap-1 w-fit">
+                                          📁 {item.clientName || activeFolder.name}
+                                        </span>
+                                      </td>
+                                      <td className="py-2.5 px-3">
+                                        {!hasQuotes ? (
+                                          <div className="flex flex-col gap-0.5 items-start">
+                                            <span className="font-extrabold text-amber-400 text-xs flex items-center gap-1">
+                                              ⚠️ Não encontrado
+                                            </span>
+                                            <div className="flex items-center gap-1">
+                                              <span className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider">
+                                                Sem Cotação
+                                              </span>
+                                              <button
+                                                type="button"
+                                                onClick={() => setEditingMatItem(item)}
+                                                className="text-[10px] text-amber-400 hover:text-amber-300 underline font-bold ml-1 cursor-pointer"
+                                                title="Adicionar cotação de fornecedor"
+                                              >
+                                                + Cotar
+                                              </button>
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <div className="flex flex-col gap-0.5 items-start">
+                                            <span className="font-extrabold text-white text-xs flex items-center gap-1 truncate max-w-[170px]" title={effectiveSupplier}>
+                                              🏢 {effectiveSupplier}
+                                            </span>
+                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                              {isCheapest ? (
+                                                <span className="bg-emerald-500 text-black text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider shadow-sm flex items-center gap-1">
+                                                  🏆 MENOR PREÇO
+                                                </span>
+                                              ) : (
+                                                diff > 0 && (
+                                                  <span className="bg-red-500/15 border border-red-500/30 text-red-400 text-[9px] font-bold px-1.5 py-0.5 rounded-md">
+                                                    + R$ {diff.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                  </span>
+                                                )
+                                              )}
+                                              {sortedQuotes.length > 1 && (
+                                                <button
+                                                  type="button"
+                                                  onClick={() => setEditingMatItem(item)}
+                                                  className="text-[9.5px] text-slate-400 hover:text-emerald-400 underline font-semibold transition-colors"
+                                                  title="Clique para alternar entre fornecedores cotados"
+                                                >
+                                                  ({sortedQuotes.length} fornecedores)
+                                                </button>
+                                              )}
+                                            </div>
+                                          </div>
+                                        )}
+                                      </td>
+                                      <td className="py-2.5 px-3 text-gray-300 text-xs sm:text-sm">{item.selectedBrand || 'Geral'}</td>
+                                      <td className="py-2.5 px-3 text-center font-bold text-amber-400 text-xs sm:text-sm">{item.quantity}</td>
+                                      <td className="py-2.5 px-3 text-right text-gray-300 text-xs sm:text-sm">R$ {item.selectedUnitPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                                      <td className="py-2.5 px-3 text-right font-black text-emerald-400 text-xs sm:text-sm">R$ {item.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                                      <td className="py-2.5 px-3 text-center">
+                                        <div className="flex items-center justify-center gap-1">
+                                          <button
+                                            onClick={() => setEditingMatItem(item)}
+                                            className="w-7 h-7 bg-white/5 border border-white/10 text-gray-400 hover:text-amber-400 hover:bg-amber-500/10 rounded-lg flex items-center justify-center transition-all cursor-pointer"
+                                            title="Editar item"
+                                          >
+                                            <Pencil className="w-3 h-3" />
+                                          </button>
+                                          <button
+                                            onClick={() => handleDeleteMaterialItem(item.id)}
+                                            className="w-7 h-7 bg-white/5 border border-white/10 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg flex items-center justify-center transition-all cursor-pointer"
+                                            title="Remover item da lista"
+                                          >
+                                            <Trash2 className="w-3 h-3" />
+                                          </button>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                                {listToRender.length === 0 && (
+                                  <tr>
+                                    <td colSpan={8} className="p-12 text-center text-gray-500">
+                                      Nenhum material adicionado a esta pasta no momento.
+                                    </td>
+                                  </tr>
                                 )}
-                              </td>
-                              <td className="py-2.5 px-3 text-gray-300 text-xs sm:text-sm">{item.selectedBrand || 'Geral'}</td>
-                              <td className="py-2.5 px-3 text-center font-bold text-amber-400 text-xs sm:text-sm">{item.quantity}</td>
-                              <td className="py-2.5 px-3 text-right text-gray-300 text-xs sm:text-sm">R$ {item.selectedUnitPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                              <td className="py-2.5 px-3 text-right font-black text-emerald-400 text-xs sm:text-sm">R$ {item.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                              <td className="py-2.5 px-3 text-center">
-                                <div className="flex items-center justify-center gap-1">
-                                  <button
-                                    onClick={() => setEditingMatItem(item)}
-                                    className="w-7 h-7 bg-white/5 border border-white/10 text-gray-400 hover:text-amber-400 hover:bg-amber-500/10 rounded-lg flex items-center justify-center transition-all cursor-pointer"
-                                    title="Editar item"
-                                  >
-                                    <Pencil className="w-3 h-3" />
-                                  </button>
-                                  <button
-                                    onClick={() => handleDeleteMaterialItem(item.id)}
-                                    className="w-7 h-7 bg-white/5 border border-white/10 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg flex items-center justify-center transition-all cursor-pointer"
-                                    title="Remover item da lista"
-                                  >
-                                    <Trash2 className="w-3 h-3" />
-                                  </button>
-                                </div>                              </td>
-                            </tr>
-                          );
-                        })}
-                        {displayedList.length === 0 && (
-                          <tr>
-                            <td colSpan={8} className="p-12 text-center text-gray-500">
-                              Nenhum material adicionado a esta pasta no momento. Use o botão <b>+ Adicionar Material</b> acima para incluir itens!
-                            </td>
-                          </tr>
+                              </tbody>
+                            </table>
+                          </div>
                         )}
-                      </tbody>
-                    </table>
-                  </div>
+                      </div>
+                    );
+                  })()}
                 </>
               ) : (
                 <div className="bg-[#111317] border border-white/10 rounded-3xl p-12 text-center space-y-3 shadow-xl">
