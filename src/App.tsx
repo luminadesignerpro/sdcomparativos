@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -20,26 +20,38 @@ const queryClient = new QueryClient({
 });
 
 const SDComparativoApp: React.FC = () => {
+  useEffect(() => {
+    try {
+      const p = new URLSearchParams(window.location.search);
+      const o = p.get('origem') || p.get('from');
+      const r = p.get('retorno');
+      if (o) sessionStorage.setItem('sd_origem_retorno', o);
+      if (r) sessionStorage.setItem('sd_url_retorno', r);
+    } catch (_) {}
+  }, []);
+
   const handleVoltarAoOrcamento = () => {
     try {
-      // 1. Tenta fechar se foi aberto via window.open / popup
       if (window.opener && !window.opener.closed) {
         window.close();
         return;
       }
 
-      // 2. Se houver histórico de navegação, volta direto sem recarregar ou preencher parâmetros
-      if (window.history && window.history.length > 1) {
-        window.history.back();
+      const urlParams = new URLSearchParams(window.location.search);
+      const origem = urlParams.get('origem') || urlParams.get('from') || sessionStorage.getItem('sd_origem_retorno');
+      const retornoParam = urlParams.get('retorno') || sessionStorage.getItem('sd_url_retorno');
+
+      if (retornoParam) {
+        window.location.href = retornoParam;
         return;
       }
 
-      // 3. Fallback: redireciona para a URL do sistema limpa, SEM parâmetros de itens
-      const urlParams = new URLSearchParams(window.location.search);
-      const retornoBase = urlParams.get('retorno') || 'https://sdmoveisprojetados.vercel.app';
-      const cleanUrl = new URL(retornoBase, window.location.origin);
-      cleanUrl.search = '';
-      window.location.href = cleanUrl.toString();
+      const baseUrl = 'https://sdmoveisprojetados.vercel.app';
+      if (origem === 'material') {
+        window.location.href = `${baseUrl}/?origem=material#crono-material`;
+      } else {
+        window.location.href = `${baseUrl}/?origem=orcamento#orcamento`;
+      }
     } catch {
       window.location.href = 'https://sdmoveisprojetados.vercel.app';
     }
